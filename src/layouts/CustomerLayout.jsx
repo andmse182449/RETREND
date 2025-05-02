@@ -25,15 +25,6 @@ import VoucherModal from "../components/VoucherModal";
 // Import the useCart hook from your context file
 import { useCart } from '../context/CartContext'; // Adjust the path relative to this file
 
-
-// Sample data (removed load/save/sample logic - now in context)
-// const sampleCartItems = [...]; // Removed
-
-// Persistence logic (removed - now in context)
-// const loadCartItems = () => { ... }; // Removed
-// const saveCartItems = () => { ... }; // Removed
-
-
 export default function CustomerLayout() {
   // Consume the cart context instead of managing state locally
   const {

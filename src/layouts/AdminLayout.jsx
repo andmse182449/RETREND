@@ -1,18 +1,26 @@
 import React from "react";
 import { Outlet, Link } from "react-router-dom";
-import { FaTachometerAlt, FaBox, FaShoppingCart, FaUsers } from "react-icons/fa"; // Importing icons
+import {
+  FaTachometerAlt,
+  FaBox,
+  FaShoppingCart,
+  FaUsers,
+  FaTag // Importing FaTag for the Vouchers icon
+} from "react-icons/fa"; // Importing icons
 
 export default function AdminLayout() {
   return (
     <div className="min-h-screen flex bg-gray-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-lg border-r border-gray-300">
-        <div className="p-4">
+      <aside className="w-64 bg-white shadow-lg border-r border-gray-300 p-4 flex flex-col"> {/* Added p-4, flex flex-col */}
+        {/* Logo */}
+        <div className="mb-6"> {/* Added margin bottom */}
           <Link to="/admin" className="text-2xl font-bold text-gray-800">
             Retrend Admin
           </Link>
         </div>
-        <nav className="mt-4">
+        {/* Navigation */}
+        <nav className="flex-grow"> {/* Added flex-grow to push logout down */}
           <ul className="space-y-2">
             <li>
               <Link
@@ -50,12 +58,34 @@ export default function AdminLayout() {
                 Users
               </Link>
             </li>
+            {/* --- NEW: Vouchers Link --- */}
+             <li>
+               <Link
+                 to="/admin/vouchers" // Updated path to /admin/vouchers
+                 className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 transition rounded-md"
+               >
+                 <FaTag className="mr-3" /> {/* Using the Tag icon */}
+                 Vouchers
+               </Link>
+             </li>
+             {/* --- End NEW --- */}
           </ul>
         </nav>
+
+        {/* Optional: Admin User Info / Logout Placeholder */}
+        {/* You might want to add user info or a logout button here */}
+         <div className="mt-auto pt-4 border-t border-gray-200"> {/* Added margin top auto and border top */}
+            {/* Example: Logged-in admin user info */}
+            {/* <div className="text-sm text-gray-600 text-center">Logged in as Admin</div> */}
+            {/* Example Logout button */}
+            {/* <button className="w-full px-4 py-2 mt-2 text-center bg-red-500 text-white rounded-md hover:bg-red-600">Logout</button> */}
+         </div>
+
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <main className="flex-grow container mx-auto px-4 py-8">
+        {/* Outlet renders the matched child route component (AdminDashboard, AdminProducts, etc.) */}
         <Outlet />
       </main>
     </div>

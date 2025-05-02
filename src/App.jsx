@@ -28,6 +28,7 @@ import CustomerProductsPage from "./pages/customer/CustomerProductsPage";
 import BlindboxPage from "./pages/customer/BlindboxPage";
 import AdminCustomerDetails from "./pages/admin/AdminCustomerDetails";
 import { CartProvider } from "./context/CartContext";
+import AdminVouchers from "./pages/admin/AdminVouchers";
 
 function App() {
   return (
@@ -61,6 +62,7 @@ function App() {
             <Route path="orders" element={<AdminOrders />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="users/:userId" element={<AdminCustomerDetails />} />
+            <Route path="vouchers" element={<AdminVouchers />} />
           </Route>
 
           {/* Redirect unknown routes to home */}
