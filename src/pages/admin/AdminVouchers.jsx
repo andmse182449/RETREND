@@ -147,7 +147,7 @@ export default function AdminVouchers() {
         setVouchers(vouchers.filter(v => v.id !== id)); // Remove from state
         console.log("Voucher deleted (mock).");
         // In a real app: Call API to delete voucher on backend
-        // fetch(`/api/admin/vouchers/${id}`, { method: 'DELETE' }).then(...).catch(...)
+        // fetch(`/services/admin/vouchers/${id}`, { method: 'DELETE' }).then(...).catch(...)
     }
   };
 

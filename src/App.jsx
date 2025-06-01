@@ -9,7 +9,7 @@ import CustomerLayout from "./layouts/CustomerLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import HomePage from "./pages/customer/HomePage";
 import ProductsPage from "./pages/customer/ProductsPage";
-import ProductDetailPage from "./pages/customer/ProductDetailPage";
+// import ProductDetailPage from "./pages/customer/ProductDetailPage";
 import CartPage from "./pages/customer/CartPage";
 import CheckoutPage from "./pages/customer/CheckoutPage";
 import LoginPage from "./pages/customer/LoginPage";
@@ -29,17 +29,22 @@ import BlindboxPage from "./pages/customer/BlindboxPage";
 import AdminCustomerDetails from "./pages/admin/AdminCustomerDetails";
 import { CartProvider } from "./context/CartContext";
 import AdminVouchers from "./pages/admin/AdminVouchers";
+import PaymentSuccess from "./components/PaymentSuccess";
+import PaymentFailed from "./components/PaymentFailed";
+import PaymentResultPage from "./components/PaymentResultPage";
+import EmbeddedCheckoutPage from "./pages/payment/PayOS";
 
 function App() {
   return (
     <Router>
       <CartProvider>
+        
         <Routes>
           {/* Customer routes */}
           <Route path="/" element={<CustomerLayout />}>
             <Route index element={<HomePage />} />
             <Route path="products" element={<ProductsPage />} />
-            <Route path="products/:id" element={<ProductDetailPage />} />
+            {/* <Route path="products/:id" element={<ProductDetailPage />} /> */}
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
             <Route path="login" element={<LoginPage />} />
@@ -52,6 +57,10 @@ function App() {
             <Route path="test" element={<CustomerProductsPage />} />
             <Route path="dashboard" element={<SellerDashboard />} />
             <Route path="blindbox" element={<BlindboxPage />} />
+            <Route path="order/result" element={<PaymentResultPage />} />
+          <Route path="payment-successed" element={<PaymentSuccess />} />
+          <Route path="payment-failed" element={<PaymentFailed />} />
+            <Route path="/checkout-embedded" element={<EmbeddedCheckoutPage />} />
           </Route>
 
           {/* Admin routes */}

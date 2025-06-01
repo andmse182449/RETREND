@@ -5,20 +5,20 @@ export default function Contact() {
     <div className="max-w-5xl mx-auto p-8 bg-white rounded-lg shadow-lg">
       {/* Breadcrumb Navigation */}
       <div className="flex items-center text-sm text-gray-500 mb-6">
-        <a href="/" className="hover:underline">Home</a>
+        <a href="/" className="hover:underline">Trang chủ</a>
         <span className="mx-2">/</span>
-        <span className="font-medium text-gray-700">Contact Us</span>
+        <span className="font-medium text-gray-700">Liên hệ chúng tôi</span>
       </div>
       
-      <h1 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-4">CONTACT US</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-4">LIÊN HỆ CHÚNG TÔI</h1>
       
       <div className="grid md:grid-cols-2 gap-10">
         <div>
-          <h2 className="text-xl font-semibold mb-4 text-gray-700">Get In Touch</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Liên lạc với chúng tôi</h2>
           <p className="mb-6 text-gray-600">
-            We're here to help! If you have any questions about our products, your order, or our policies, 
-            please don't hesitate to reach out. Our customer service team is available Monday through Friday, 
-            9:30 AM - 5:30 PM (EST).
+            Chúng tôi ở đây để giúp bạn! Nếu bạn có bất kỳ câu hỏi nào về sản phẩm, đơn hàng hoặc chính sách của chúng tôi, 
+            đừng ngần ngại liên hệ. Đội ngũ dịch vụ khách hàng của chúng tôi làm việc từ Thứ Hai đến Thứ Sáu, 
+            9:30 sáng - 8:30 chiều (giờ EST).
           </p>
           
           <div className="space-y-4 text-gray-600">
@@ -30,8 +30,8 @@ export default function Contact() {
               </div>
               <div>
                 <p className="font-medium">Email</p>
-                <a href="mailto:support@retrend.com" className="text-blue-600 hover:underline">support@retrend.com</a>
-                <p className="text-sm text-gray-500 mt-1">We typically respond within 24 hours</p>
+                <a href="mailto:support@retrend.com" className="text-blue-600 hover:underline">retrend@gmail.com</a>
+                <p className="text-sm text-gray-500 mt-1">Chúng tôi thường trả lời trong vòng 24 giờ</p>
               </div>
             </div>
             
@@ -42,9 +42,9 @@ export default function Contact() {
                 </svg>
               </div>
               <div>
-                <p className="font-medium">Phone</p>
+                <p className="font-medium">Điện thoại</p>
                 <a href="tel:+15551234567" className="text-blue-600 hover:underline">+1 (555) 123-4567</a>
-                <p className="text-sm text-gray-500 mt-1">Available Mon-Fri, 9:30AM - 5:30PM (EST)</p>
+                <p className="text-sm text-gray-500 mt-1">Làm việc Thứ Hai - Thứ Sáu, 9:30 sáng - 8:30 chiều (giờ EST)</p>
               </div>
             </div>
             
@@ -56,55 +56,55 @@ export default function Contact() {
                 </svg>
               </div>
               <div>
-                <p className="font-medium">Address</p>
-                <p>123 Fashion St, Suite 500</p>
-                <p>Style City, CA 90210</p>
-                <p>United States</p>
+                <p className="font-medium">Địa chỉ</p>
+                <p>FPT University</p>
+                <p>Thành phố Thủ Đức</p>
+                <p>Việt Nam</p>
               </div>
             </div>
           </div>
         </div>
         
         <div className="bg-gray-50 p-6 rounded-lg">
-          <h2 className="text-xl font-semibold mb-4 text-gray-700">Send Us a Message</h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Gửi tin nhắn cho chúng tôi</h2>
           <form className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
               <input type="text" id="name" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Địa chỉ Email</label>
               <input type="email" id="email" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">Chủ đề</label>
               <input type="text" id="subject" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
             </div>
             <div>
-              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+              <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Tin nhắn</label>
               <textarea id="message" rows="4" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"></textarea>
             </div>
             <button type="submit" className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200">
-              Send Message
+              Gửi tin nhắn
             </button>
           </form>
         </div>
       </div>
       
       <div className="mt-12 pt-8 border-t">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">FAQ</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">Câu hỏi thường gặp (FAQ)</h2>
         <div className="space-y-4">
           <div>
-            <h3 className="font-medium text-gray-800">What are your business hours?</h3>
-            <p className="text-gray-600">Our customer service team is available Monday through Friday from 9:30 AM to 5:30 PM (EST).</p>
+            <h3 className="font-medium text-gray-800">Giờ làm việc của bạn là gì?</h3>
+            <p className="text-gray-600">Đội ngũ dịch vụ khách hàng của chúng tôi làm việc từ Thứ Hai đến Thứ Sáu, từ 9:30 sáng đến 5:30 chiều (giờ EST).</p>
           </div>
           <div>
-            <h3 className="font-medium text-gray-800">How quickly will I receive a response?</h3>
-            <p className="text-gray-600">We strive to respond to all inquiries within 24 hours during business days.</p>
+            <h3 className="font-medium text-gray-800">Tôi sẽ nhận được phản hồi trong bao lâu?</h3>
+            <p className="text-gray-600">Chúng tôi cố gắng trả lời tất cả các yêu cầu trong vòng 24 giờ vào các ngày làm việc.</p>
           </div>
           <div>
-            <h3 className="font-medium text-gray-800">Can I visit your physical store?</h3>
-            <p className="text-gray-600">Yes, our showroom is open to visitors by appointment only. Please contact us to schedule a visit.</p>
+            <h3 className="font-medium text-gray-800">Tôi có thể đến cửa hàng trực tiếp của bạn không?</h3>
+            <p className="text-gray-600">Có, phòng trưng bày của chúng tôi mở cửa đón khách theo lịch hẹn. Vui lòng liên hệ với chúng tôi để đặt lịch hẹn.</p>
           </div>
         </div>
       </div>

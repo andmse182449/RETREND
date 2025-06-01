@@ -1,351 +1,461 @@
-import React, { useState, useEffect } from "react"; // Import useEffect
-import { useNavigate, Link } from "react-router-dom";
+// src/pages/CheckoutPage.js
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
-  FaShoppingCart,
   FaTimes,
-  FaClipboard, // Icons for modals if used internally (not explicitly needed in this Checkout)
-  FaChevronDown, // Maybe used in selects? (using native arrow)
-  FaMapMarkerAlt, // For address icons
+  FaMapMarkerAlt,
   FaPhone,
   FaEnvelope,
   FaUser,
-  FaMinus,
-  FaPlus 
+  FaShoppingCart as FaShoppingCartIcon,
+  FaBoxOpen,
+  FaSpinner,
 } from "react-icons/fa";
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-// Import the useCart hook from your context
-import { useCart } from "../../context/CartContext"; // Adjust path as necessary
-
-// We will create simple mock modals here
+import { useCart } from "../../context/CartContext"; // Adjust path
 import PaymentMethodModal from "../../components/PaymentMethodModal"; // Adjust path
-import VoucherModal from "../../components/VoucherModal"; // Adjust path - assumes you have this working from previous steps
+import VoucherModal from "../../components/VoucherModal"; // Adjust path
+import voucherApiService from "../../services/VoucherApiService"; // Adjust path
 
+// --- Helper to get Logged In User Info (Replace with your actual auth logic) ---
+const getLoggedInUserInfo = () => {
+  const token = localStorage.getItem("authToken");
+  const userString = localStorage.getItem("user"); // Key used to store user object
+
+  if (token && userString) {
+    try {
+      const userData = JSON.parse(userString);
+      // Ensure the necessary fields exist in the stored userData
+      return {
+        userId: userData.userId || null, // CRITICAL for API
+        phone: userData.phone || "",
+        email: userData.email || "",
+        // Assuming shippingAddress might also be part of the stored user object
+        // If not, this part will be empty and user has to fill it
+        shippingAddress: userData.shippingAddress || {
+          city: "",
+          district: "",
+          ward: "",
+          address: "",
+          addressDetail: "",
+        },
+      };
+    } catch (e) {
+      console.error(
+        "CheckoutPage: Error parsing user data from localStorage:",
+        e
+      );
+      // Fallback if user data is corrupted but token exists
+      return {
+        userId: null,
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+      };
+    }
+  }
+
+  return null; // No token or no user data found
+};
+
+const ORDER_CREATE_API_URL =
+  "https://be-exe2-1.onrender.com/v1.0/orders/create";
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const [error, setError] = useState(null);
-  // Consume cart context to get cart data and price formatting
-  const { cartItems, subtotal, formatPrice, updateQuantity, removeItem } =
-    useCart(); // RemoveItem needed if we keep delete button in summary
+  const location = useLocation();
 
-  // --- State for Shipping/Contact Information Form ---
+  const { getSelectedCartItems, formatPrice, clearCart } = useCart();
+
+  const [itemsToCheckout, setItemsToCheckout] = useState([]);
+  const [orderNote, setOrderNote] = useState("");
+
   const [shippingForm, setShippingForm] = useState({
-    firstName: "", // Duona
-    lastName: "", // An
-    phone: "", // Phone
-    email: "", // Email
-    city: "", // Tỉnh/Thành phố (using a string for simplicity vs. select)
-    district: "", // Quận/huyện
-    ward: "", // Phường/xã
-    address: "", // Tòa nhà, số nhà, tên đường (building, house number, street name)
-    addressDetail: "", // Chi tiết địa chỉ (ghi chú địa điểm...) (Detailed address note)
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    city: "",
+    district: "",
+    ward: "",
+    address: "",
+    addressDetail: "",
   });
-
-  // --- State for other sections ---
   const [selectedShippingMethod, setSelectedShippingMethod] =
-    useState("standard"); // 'standard', 'express', etc.
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false); // State for payment modal
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cod"); // 'cod', 'vnpay', etc.
-  const [voucherCode, setVoucherCode] = useState(""); // State for voucher input
-  const [appliedDiscount, setAppliedDiscount] = useState(0); // State for discount amount (simulated)
-  // Assume 'Xem tất cả' button uses the VoucherModal you built, triggered externally
+    useState("standard");
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedPaymentMethodDisplay, setSelectedPaymentMethodDisplay] =
+    useState("online_payos");
+
+  const [availableApiVouchers, setAvailableApiVouchers] = useState([]);
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
+  const [voucherCodeInput, setVoucherCodeInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [calculatedDiscount, setCalculatedDiscount] = useState(0);
 
-  const openVoucherModal = () => {
-    // <-- This is where the function is defined
-    // setIsCartOpen(false); // Removed line from earlier
-    setIsVoucherModalOpen(true); // Set the state to true
-    console.log("Opening voucher modal. Cart should remain open.");
-  };
-  const closeVoucherModal = () => setIsVoucherModalOpen(false);
-  // Placeholder Voucher Data (should ideally come from Context or API if used elsewhere)
-  // Keeping a small mock list for the "Áp dụng" button check
-  const availableVouchers = [
-    { code: "TEST100K", discount: 100000, minOrder: 500000, type: "fixed" },
-    {
-      code: "SHIPFREE",
-      discount: "free_shipping",
-      minOrder: 0,
-      type: "shipping",
-    },
-    { code: "PERCENT10", discount: 0.1, minOrder: 1000000, type: "percentage" }, // Example percentage
-  ];
+  const [error, setError] = useState(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
 
-  // --- Derived Calculations ---
-  const shippingCost =
-    selectedShippingMethod === "standard"
-      ? 0
-      : selectedShippingMethod === "express"
-      ? 30000
-      : 0; // Example flat rate for standard
-  const totalBeforeDiscount = subtotal + shippingCost; // Subtotal + Shipping
-  const totalAfterDiscount = totalBeforeDiscount - appliedDiscount; // Total after applying discount
-  const estimatedPoints = Math.floor(totalAfterDiscount / 10000); // Simple point calculation (e.g., 1 point per 10,000 VND)
-
-  // Formats a price in VND (can use formatPrice from context directly now)
-  const formatVND = formatPrice;
-
-  // --- Effects ---
   useEffect(() => {
-    // In a real app, if the user is logged in, pre-populate shipping form from user profile data
-    // Example: Fetch user profile data here and setForm(user.shippingAddress)
-    console.log("CheckoutPage mounted. Pre-populating form/methods (mock).");
-    // Set default values if not already set (useful if form pre-populates from API/Profile)
-    setShippingForm((prev) => ({
-      firstName: prev.firstName || "",
-      lastName: prev.lastName || "",
-      phone: prev.phone || "",
-      email: prev.email || "",
-      city: prev.city || "",
-      district: prev.district || "",
-      ward: prev.ward || "",
-      address: prev.address || "",
-      addressDetail: prev.addressDetail || "",
-    }));
+    const selectedItemsFromContext = getSelectedCartItems();
+    const initialItems =
+      location.state?.itemsToCheckout || selectedItemsFromContext || [];
 
-    // Set default method if not already set
-    setSelectedShippingMethod((prev) => prev || "standard");
-    setSelectedPaymentMethod((prev) => prev || "cod");
-
-    // Check if cart is empty and redirect
-    if (!cartItems || cartItems.length === 0) {
-      console.log("Cart is empty. Redirecting to cart page.");
-      navigate("/cart"); // Redirect if cart is empty
-    }
-  }, [cartItems, navigate]); // Rerun effect if cart or navigate changes
-
-  // --- Handlers ---
-  const handleShippingInputChange = (e) => {
-    const { name, value } = e.target;
-    // Implement validation logic here as needed (e.g., check required fields, phone format)
-    setShippingForm({ ...shippingForm, [name]: value });
-  };
-
-  // Placeholder: Open Payment Method Selection Modal
-  const openPaymentModal = () => {
-    setIsPaymentModalOpen(true);
-    console.log("Opening payment method modal (mock).");
-  };
-  // Placeholder: Handle Payment Method Selected (Called from modal)
-  const handlePaymentMethodSelected = (method) => {
-    setSelectedPaymentMethod(method); // Update state
-    setIsPaymentModalOpen(false); // Close modal
-    console.log("Payment method selected:", method);
-    // Implement any necessary UI updates or API calls based on selection
-  };
-  // Placeholder: Close Payment Method Modal
-  const closePaymentModal = () => {
-    setIsPaymentModalOpen(false);
-    console.log("Closing payment method modal.");
-  };
-
-  // Placeholder: Apply Voucher Code Logic
-  const handleApplyVoucher = () => {
-    if (!voucherCode) {
-      console.log("No voucher code entered.");
-      setAppliedDiscount(discountAmount); // Reset discount if code is empty
-      setError("Please enter a voucher code."); // Show feedback
+    if (initialItems.length === 0) {
+      navigate("/cart");
       return;
     }
+    setItemsToCheckout(initialItems.map((item) => ({ ...item, quantity: 1 })));
+    setOrderNote(location.state?.orderNote || "");
 
-    const codeToApply = voucherCode.toUpperCase().trim(); // Case-insensitive and trim
-    const voucher = availableVouchers.find((v) => v.code === codeToApply);
-
-    if (!voucher) {
-      console.log(`Voucher code "${codeToApply}" not found.`);
-      setAppliedDiscount(0);
-      setError(`Mã "${codeToApply}" không hợp lệ.`); // "Code not valid"
-      return;
+    const currentUser = getLoggedInUserInfo();
+    if (currentUser) {
+      setShippingForm({
+        firstName: currentUser.firstName || "",
+        lastName: currentUser.lastName || "",
+        phone: currentUser.phone || "",
+        email: currentUser.email || "",
+        city: currentUser.shippingAddress?.city || "",
+        district: currentUser.shippingAddress?.district || "",
+        ward: currentUser.shippingAddress?.ward || "",
+        address: currentUser.shippingAddress?.address || "",
+        addressDetail: currentUser.shippingAddress?.addressDetail || "",
+      });
     }
-
-    // --- Check Voucher Conditions ---
-    // Check minimum order value
-    if (totalBeforeDiscount < voucher.minOrder) {
-      console.log(
-        `Voucher code "${codeToApply}" requires min order of ${voucher.minOrder}. Current total: ${totalBeforeDiscount}`
-      );
-      setAppliedDiscount(0);
-      setError(
-        `Mã "${codeToApply}" cần đơn hàng tối thiểu ${formatVND(
-          voucher.minOrder
-        )}.`
-      ); // "Code requires min order..."
-      return;
+    if (location.state?.appliedVoucher) {
+      setAppliedVoucher(location.state.appliedVoucher);
+      setVoucherCodeInput(location.state.appliedVoucher.code);
     }
+  }, [getSelectedCartItems, location.state, navigate]);
 
-    // Check type of discount and calculate
-    let discountAmount = 0;
-    if (voucher.type === "fixed") {
-      discountAmount = voucher.discount;
-      console.log(`Applied fixed discount: ${discountAmount}`);
-    } else if (voucher.type === "percentage") {
-      discountAmount = totalBeforeDiscount * voucher.discount; // Calculate percentage
-      // Optional: Cap percentage discount at a max value if needed
-      console.log(`Applied percentage discount: ${discountAmount}`);
-    } else if (voucher.type === "shipping") {
-      discountAmount = shippingCost; // Discount equals the current shipping cost
-      console.log(`Applied free shipping discount: ${discountAmount}`);
-    }
-    // Ensure discount amount doesn't exceed the total before discount
-    discountAmount = Math.min(discountAmount, totalBeforeDiscount);
+  useEffect(() => {
+    const fetchVouchers = async () => {
+      const token = localStorage.getItem("authToken");
+      if (!token) return;
+      setIsLoadingVouchers(true);
+      setError(null);
+      try {
+        const fetched = await voucherApiService.getAvailableVouchers();
+        const formatted = (fetched || []).map((v) => ({
+          id: v.voucherId,
+          code: v.code,
+          name: v.name || `Voucher ${v.code}`,
+          description:
+            v.description ||
+            (v.minOrderAmount > 0
+              ? `Đơn hàng từ ${formatPrice(v.minOrderAmount)}`
+              : "Mọi đơn hàng"),
+          minAmount: v.minOrderAmount || 0,
+          discountType:
+            v.discountType || (v.discountAmount > 0 ? "fixed" : "shipping"),
+          discountValue: v.discountAmount || 0,
+          expiryDate: v.expiryDate,
+        }));
+        setAvailableApiVouchers(formatted);
+      } catch (err) {
+        console.error("CheckoutPage: Failed to fetch API vouchers:", err);
+      } finally {
+        setIsLoadingVouchers(false);
+      }
+    };
+    fetchVouchers();
+  }, [formatPrice]);
 
-    // --- Apply Discount ---
-    setAppliedDiscount(discountAmount); // Update discount state
-    setError(null); // Clear errors on success
-    // Optional: Show success message to user
-    console.log(
-      `Voucher code "${codeToApply}" applied. Discount: ${discountAmount}`
-    );
+  const currentSubtotal = itemsToCheckout.reduce(
+    (sum, item) => sum + (parseFloat(item.price) || 0),
+    0
+  );
 
-    // Note: In a real app, applying a voucher usually requires sending
-    // the code to the backend to validate eligibility and return the
-    // final price breakdown from the server.
-  };
+  const calculateCurrentDiscount = useCallback(() => {
+    if (!appliedVoucher || currentSubtotal < appliedVoucher.minAmount) return 0;
+    let discount = 0;
+    const type = appliedVoucher.discountType || appliedVoucher.type;
+    const value = appliedVoucher.discountValue || appliedVoucher.discount;
+    if (type === "fixed") discount = value;
+    else if (type === "percentage") discount = currentSubtotal * (value / 100);
+    return Math.min(discount, currentSubtotal);
+  }, [appliedVoucher, currentSubtotal]);
 
-  const handleSubmitOrder = (e) => {
-    e.preventDefault();
-    // Basic validation example
+  useEffect(() => {
+    setCalculatedDiscount(calculateCurrentDiscount());
+  }, [appliedVoucher, currentSubtotal, calculateCurrentDiscount]);
+
+  const currentShippingCost = (() => {
     if (
-      !shippingForm.firstName ||
-      !shippingForm.lastName ||
-      !shippingForm.phone ||
-      !shippingForm.email ||
-      !shippingForm.city ||
-      !shippingForm.district ||
-      !shippingForm.ward ||
-      !shippingForm.address ||
-      setError(null)
-    ) {
-      setError("Please fill in all required shipping information."); // Display error
-      console.warn(
-        "Form validation failed. Please fill in all required fields."
+      appliedVoucher?.discountType === "shipping" ||
+      appliedVoucher?.type === "shipping"
+    )
+      return 0;
+    const subtotalForShippingCalc = currentSubtotal - calculatedDiscount;
+    if (subtotalForShippingCalc >= 600000) return 0;
+    return selectedShippingMethod === "express" ? 30000 : 0;
+  })();
+
+  const finalTotal = Math.max(
+    0,
+    currentSubtotal - calculatedDiscount + currentShippingCost
+  );
+
+  const handleShippingInputChange = (e) =>
+    setShippingForm({ ...shippingForm, [e.target.name]: e.target.value });
+  const openPaymentModal = () => setIsPaymentModalOpen(true);
+  const closePaymentModal = () => setIsPaymentModalOpen(false);
+  const handlePaymentMethodSelected = (method) => {
+    setSelectedPaymentMethodDisplay(method);
+    closePaymentModal();
+  };
+  const openVoucherModal = () => setIsVoucherModalOpen(true);
+  const closeVoucherModal = () => setIsVoucherModalOpen(false);
+
+  const handleVoucherSelectedFromModal = (voucherFromModal) => {
+    if (currentSubtotal < voucherFromModal.minAmount) {
+      toast.warn(
+        `Voucher "${
+          voucherFromModal.name
+        }" yêu cầu đơn hàng tối thiểu ${formatPrice(
+          voucherFromModal.minAmount
+        )}.`
       );
-      return; // Stop submission
-    }
-    if (!selectedShippingMethod) {
-      setError("Please select a shipping method.");
+      closeVoucherModal();
       return;
     }
-    if (!selectedPaymentMethod) {
-      setError("Please select a payment method.");
+    setAppliedVoucher(voucherFromModal);
+    setVoucherCodeInput(voucherFromModal.code);
+    setError(null);
+    closeVoucherModal();
+    toast.info(`Đã chọn voucher: ${voucherFromModal.name}`);
+  };
+  const handleApplyVoucherByInput = () => {
+    if (!voucherCodeInput.trim()) {
+      setAppliedVoucher(null);
       return;
     }
-
-    setError(null); // Clear previous errors on submit attempt
-    setIsLoading(true); // Show loading indicator during submission (if applicable)
-
-    // --- Simulate Order Submission ---
-    console.log("Submitting Order (Mock)...");
-    console.log("Shipping Info:", shippingForm);
-    console.log("Shipping Method:", selectedShippingMethod);
-    console.log("Payment Method:", selectedPaymentMethod);
-    console.log(
-      "Applied Voucher Code:",
-      voucherCode,
-      "Discount:",
-      appliedDiscount
+    const codeToApply = voucherCodeInput.toUpperCase().trim();
+    const voucher = availableApiVouchers.find(
+      (v) => v.code.toUpperCase() === codeToApply
     );
-    console.log("Cart Items:", cartItems);
-    console.log("Final Total:", totalAfterDiscount);
-
-    // In a real app: Send data to backend API via fetch or axios POST request
-    /*
-     fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            shippingInfo: shippingForm,
-            shippingMethod: selectedShippingMethod,
-            paymentMethod: selectedPaymentMethod,
-            voucherCode: voucherCode, // Or applied voucher ID
-            cartItems: cartItems.map(item => ({ productId: item.id, quantity: item.quantity })), // Simplified cart items
-            totalAmount: totalAfterDiscount // Total to be confirmed by server
-            // Include other details like userId if applicable
-        })
-     })
-     .then(response => {
-        if (!response.ok) throw new Error('Order placement failed');
-        return response.json(); // Assuming backend returns order confirmation
-     })
-     .then(orderConfirmation => {
-         console.log("Order placed successfully (mock):", orderConfirmation);
-         // Clear the cart upon successful order
-         // setCartItems([]); // Call setCartItems from useCart hook (need access)
-         localStorage.removeItem('cartItems'); // Clear mock storage
-
-         // Redirect to order confirmation page
-         navigate('/order-confirmation/' + orderConfirmation.orderId); // Assuming ID is returned
-     })
-     .catch(err => {
-         console.error("Order submission error:", err);
-         setError(`Order placement failed: ${err.message || 'Unknown error'}`); // Display error to user
-         setIsLoading(false); // Stop loading
-     });
-     */
-
-    // --- Mock Success Simulation (Replace with real fetch logic above) ---
-    // For mock success, just log and clear cart, then redirect
-    setTimeout(() => {
-      console.log("Mock order submission success.");
-      // We need access to setCartItems from CartContext here
-      // For this mock, we can directly manipulate localStorage or need Context access
-      // If using CartContext properly wrapped higher up, you'd useContext().setCartItems([]);
-      // For now, simulate clearing mock localStorage used by CartContext
-      localStorage.removeItem("cartItems"); // Clear mock storage
-      // A simple way to signal the cart context could be a special function or refreshing logic
-
-      // Redirect to a success page or home
-      navigate("/"); // Redirect to home or a success page
-
-      // Show thank you message briefly if needed (handle on landing page or in a state here before redirect)
-      // Example: setSubmitted(true); setTimeout(() => navigate('/'), 3000); // As in old code
-    }, 1500); // Simulate delay
+    if (!voucher) {
+      setAppliedVoucher(null);
+      toast.error(`Mã voucher "${codeToApply}" không hợp lệ.`);
+      return;
+    }
+    if (currentSubtotal < voucher.minAmount) {
+      setAppliedVoucher(null);
+      toast.warn(
+        `Đơn hàng chưa đủ ${formatPrice(
+          voucher.minAmount
+        )} để dùng mã "${codeToApply}".`
+      );
+      return;
+    }
+    setAppliedVoucher(voucher);
+    setError(null);
+    toast.success(`Đã áp dụng voucher: ${voucher.name}`);
+  };
+  const handleRemoveAppliedVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherCodeInput("");
+    setCalculatedDiscount(0);
+    setError(null);
   };
 
-  // Render placeholder when cart is empty (as handled by useEffect)
-  if (!cartItems || cartItems.length === 0) {
-    // The useEffect already redirects to /cart, so this component shouldn't render unless the redirect hasn't happened yet
-    // If it *does* render briefly before redirect, maybe show a minimal message
+  const handleSubmitOrder = async (e) => {
+    e.preventDefault();
+    setError(null);
+    const requiredShippingFields = [
+      "firstName",
+      "lastName",
+      "phone",
+      "email",
+      "city",
+      "district",
+      "ward",
+      "address",
+    ];
+    for (const field of requiredShippingFields) {
+      if (!shippingForm[field]?.trim()) {
+        toast.error(
+          `Vui lòng điền: ${
+            field === "firstName" ? "Tên" : field === "lastName" ? "Họ" : field
+          }.`
+        );
+        document.getElementsByName(field)[0]?.focus();
+        return;
+      }
+    }
+
+    setIsSubmittingOrder(true);
+    const authToken = localStorage.getItem("authToken");
+    if (!authToken) {
+      toast.error("Bạn cần đăng nhập để đặt hàng.");
+      setIsSubmittingOrder(false);
+      navigate("/login");
+      return;
+    }
+
+    const currentUser = getLoggedInUserInfo();
+    if (!currentUser || !currentUser.userId) {
+      toast.error("Không thể xác định người dùng. Vui lòng đăng nhập lại.");
+      setIsSubmittingOrder(false);
+      return;
+    }
+
+    // --- Construct Payload for YOUR API /v1.0/orders/create ---
+    const orderPayload = {
+      createOrderRequest: {
+        userId: currentUser.userId, // Actual logged-in user ID (must be string as per your API)
+        shippingId: selectedShippingMethod === "express" ? 2 : 1, // Example mapping
+        shippingAddress: `${shippingForm.address}, ${shippingForm.ward}, ${shippingForm.district}, ${shippingForm.city}`,
+        methodPayment: "online", // For PayOS
+        // voucherId: appliedVoucher ? parseInt(appliedVoucher.id, 10) : null, // Ensure ID is integer if API expects int
+        voucherId: appliedVoucher ? appliedVoucher.id : null, // Assuming API handles null or expects integer
+        subtotal: currentSubtotal,
+      },
+      orderItemsRequest: {
+        // orderId: Your API specifies this. If backend generates it, client shouldn't send.
+        //          If client must send a placeholder for linking, it needs careful thought.
+        //          For now, assuming backend handles linking items to the new order.
+        //          If your API *strictly* needs an int orderId here for create, that's unusual.
+        //          Let's assume it's not needed or backend implies it for new order.
+        // orderId: 0, // Placeholder if absolutely required, backend should ignore/replace
+        productIds: itemsToCheckout.map((item) => parseInt(item.id, 10)), // Ensure product IDs are integers
+      },
+    };
+
+    // If your API expects voucherId and productIds as integers explicitly:
+    if (orderPayload.createOrderRequest.voucherId !== null) {
+      orderPayload.createOrderRequest.voucherId = parseInt(
+        orderPayload.createOrderRequest.voucherId,
+        10
+      );
+    }
+    // orderPayload.orderItemsRequest.orderId = parseInt(orderPayload.orderItemsRequest.orderId, 10); // if sending
+
+    console.log(
+      "Submitting Order Payload to API:",
+      JSON.stringify(orderPayload, null, 2)
+    );
+
+    try {
+      const response = await fetch(ORDER_CREATE_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(orderPayload),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        console.error("API order creation failed:", result);
+        throw new Error(
+          result.messages || `Lỗi từ máy chủ: ${response.status}`
+        );
+      }
+
+      console.log("API Order creation successful, server response:", result);
+      toast.info("Đang chuyển hướng đến cổng thanh toán PayOS...");
+
+      if (result.checkoutUrl) {
+        if (typeof clearCart === "function") {
+          clearCart(); // Clear cart from context
+        } else {
+          localStorage.removeItem("cartItems"); // Fallback
+          console.warn(
+            "CartContext does not have a clearCart function. Only localStorage was cleared."
+          );
+        }
+        window.location.href = result.checkoutUrl; // Redirect to PayOS
+      } else {
+        throw new Error("Không nhận được URL thanh toán PayOS từ API.");
+      }
+    } catch (err) {
+      console.error("Error submitting order:", err);
+      setError(`Đặt hàng thất bại: ${err.message}`);
+      toast.error(`Đặt hàng thất bại: ${err.message}`);
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
+
+  if (itemsToCheckout.length === 0 && !isSubmittingOrder) {
     return (
-      <div className="max-w-md mx-auto p-8 text-center">
-        Redirecting to Cart...
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center p-4">
+        <FaBoxOpen className="text-6xl text-gray-300 mb-4" />
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">
+          Chưa có sản phẩm nào để thanh toán.
+        </h2>
+        <p className="text-gray-500 mb-6">
+          Vui lòng chọn sản phẩm từ giỏ hàng của bạn.
+        </p>
+        <Link
+          to="/cart"
+          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors"
+        >
+          Quay lại Giỏ hàng
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {" "}
-      {/* Main centered container */}
-      <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-        Thanh toán {/* "Checkout" */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-extrabold text-gray-900 mb-8 text-center tracking-tight">
+        Thanh toán
       </h1>
-      {/* Optional: Progress indicator if multi-step */}
-      {/* Main Checkout Grid: Shipping (col 1), Payment/Voucher (col 2), Order Summary (col 3) */}
-      {/* Use grid-cols-1 on small, 3 equal columns on medium+ */}
-      {/* Image structure looks roughly 1/3, 1/3, 1/3 */}
       <form onSubmit={handleSubmitOrder} noValidate>
-        {" "}
-        {/* Use form for proper semantic structure and submission */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* --- Column 1: Shipping Information (Thông tin giao hàng) --- */}
-          <div className="md:col-span-1 space-y-4">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              {" "}
-              {/* Container block */}
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-x-8 gap-y-10">
+          {/* Column 1 & 2: Shipping, Payment, Voucher */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Shipping Information Form */}
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+              <h3 className="text-xl font-semibold text-gray-900 mb-5 border-b pb-3">
                 Thông tin giao hàng
-              </h3>{" "}
-              {/* Heading */}
-              {/* First/Last Name Row */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* First Name */}
+              </h3>
+              {getLoggedInUserInfo() && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
+                  <p>
+                    Sử dụng thông tin đã lưu của{" "}
+                    <span className="font-semibold">
+                      {shippingForm.firstName} {shippingForm.lastName}
+                    </span>
+                    .
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShippingForm({
+                        firstName: "",
+                        lastName: "",
+                        phone: "",
+                        email: "",
+                        city: "",
+                        district: "",
+                        ward: "",
+                        address: "",
+                        addressDetail: "",
+                      })
+                    }
+                    className="text-blue-600 hover:underline text-xs font-medium mt-1"
+                  >
+                    Nhập địa chỉ khác
+                  </button>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                 <div>
                   <label
                     htmlFor="shippingFirstName"
-                    className="block text-sm font-medium text-gray-700 mb-1 required-label"
+                    className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Tên {/* "First Name" */}
+                    Tên <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="shippingFirstName"
@@ -353,18 +463,16 @@ export default function CheckoutPage() {
                     type="text"
                     value={shippingForm.firstName}
                     onChange={handleShippingInputChange}
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
+                    className="checkout-input"
                     required
-                    placeholder="Duoha" // Placeholder from image
                   />
                 </div>
-                {/* Last Name */}
                 <div>
                   <label
                     htmlFor="shippingLastName"
-                    className="block text-sm font-medium text-gray-700 mb-1 required-label"
+                    className="block text-sm font-medium text-gray-700 mb-1"
                   >
-                    Họ {/* "Last Name" */}
+                    Họ <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="shippingLastName"
@@ -372,468 +480,422 @@ export default function CheckoutPage() {
                     type="text"
                     value={shippingForm.lastName}
                     onChange={handleShippingInputChange}
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
+                    className="checkout-input"
                     required
-                    placeholder="An" // Placeholder from image
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="shippingPhone"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Số điện thoại <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="shippingPhone"
+                    name="phone"
+                    type="tel"
+                    value={shippingForm.phone}
+                    onChange={handleShippingInputChange}
+                    className="checkout-input"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="shippingEmail"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Địa chỉ Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="shippingEmail"
+                    name="email"
+                    type="email"
+                    value={shippingForm.email}
+                    onChange={handleShippingInputChange}
+                    className="checkout-input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="shippingCity"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Tỉnh/Thành phố <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="shippingCity"
+                    name="city"
+                    type="text"
+                    value={shippingForm.city}
+                    onChange={handleShippingInputChange}
+                    className="checkout-input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="shippingDistrict"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Quận/Huyện <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="shippingDistrict"
+                    name="district"
+                    type="text"
+                    value={shippingForm.district}
+                    onChange={handleShippingInputChange}
+                    className="checkout-input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="shippingWard"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Phường/Xã <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="shippingWard"
+                    name="ward"
+                    type="text"
+                    value={shippingForm.ward}
+                    onChange={handleShippingInputChange}
+                    className="checkout-input"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="shippingAddress"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Địa chỉ cụ thể (Số nhà, tên đường){" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="shippingAddress"
+                    name="address"
+                    type="text"
+                    value={shippingForm.address}
+                    onChange={handleShippingInputChange}
+                    className="checkout-input"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="shippingAddressDetail"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Chi tiết địa chỉ (Tòa nhà, tầng...)
+                  </label>
+                  <textarea
+                    id="shippingAddressDetail"
+                    name="addressDetail"
+                    value={shippingForm.addressDetail}
+                    onChange={handleShippingInputChange}
+                    className="checkout-input"
+                    rows="2"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label
+                    htmlFor="orderNoteCheckoutPage"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Ghi chú đơn hàng
+                  </label>
+                  <textarea
+                    id="orderNoteCheckoutPage"
+                    name="orderNoteFormTextArea"
+                    value={orderNote}
+                    onChange={(e) => setOrderNote(e.target.value)}
+                    className="checkout-input"
+                    rows="2"
+                    placeholder="Ghi chú cho người bán..."
                   />
                 </div>
               </div>
-              {/* Phone Input */}
-              <div className="mt-4">
-                <label
-                  htmlFor="shippingPhone"
-                  className="block text-sm font-medium text-gray-700 mb-1 required-label"
-                >
-                  Số điện thoại {/* "Phone Number" */}
-                </label>
-                {/* Assuming international format hint or pattern needed */}
-                <input
-                  id="shippingPhone"
-                  name="phone"
-                  type="tel"
-                  value={shippingForm.phone}
-                  onChange={handleShippingInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
-                  required
-                  placeholder="+ 84961792119" // Placeholder from image
-                />
-              </div>
-              {/* Email Input */}
-              <div className="mt-4">
-                <label
-                  htmlFor="shippingEmail"
-                  className="block text-sm font-medium text-gray-700 mb-1 required-label"
-                >
-                  Địa chỉ Email {/* "Email Address" */}
-                </label>
-                <input
-                  id="shippingEmail"
-                  name="email"
-                  type="email"
-                  value={shippingForm.email}
-                  onChange={handleShippingInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
-                  required
-                  placeholder="ansiucapcute@gmail.com" // Placeholder from image
-                />
-              </div>
-              {/* Location Fields (City, District, Ward) - Using simple text inputs/selects for structure */}
-              {/* Province/City */}
-              <div className="mt-4">
-                {/* Add red border/text styling if field is empty/invalid on blur/submit */}
-                <label
-                  htmlFor="shippingCity"
-                  className="block text-sm font-medium text-gray-700 mb-1 required-label"
-                >
-                  Tỉnh/Thành phố {/* "Province/City" */}
-                </label>
-                {/* Could be a select input for actual implementation */}
-                <input
-                  id="shippingCity"
-                  name="city"
-                  type="text"
-                  value={shippingForm.city}
-                  onChange={handleShippingInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
-                  required
-                  placeholder="Chọn Tỉnh/Thành phố" // Placeholder from image (or select prompt)
-                />
-                {/* Example Red Required Text (visible on submit if empty) */}
-                {/* {formErrors.city && <p className="text-red-500 text-xs mt-1">Tỉnh/Thành phố là bắt buộc</p>} */}
-              </div>
-              {/* District */}
-              <div className="mt-4">
-                <label
-                  htmlFor="shippingDistrict"
-                  className="block text-sm font-medium text-gray-700 mb-1 required-label"
-                >
-                  Quận/Huyện {/* "District" */}
-                </label>
-                {/* Could be a select input */}
-                <input
-                  id="shippingDistrict"
-                  name="district"
-                  type="text"
-                  value={shippingForm.district}
-                  onChange={handleShippingInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
-                  required
-                  placeholder="Chọn Quận/Huyện" // Placeholder
-                />
-                {/* {formErrors.district && <p className="text-red-500 text-xs mt-1">Quận/Huyện là bắt buộc</p>} */}
-              </div>
-              {/* Ward */}
-              <div className="mt-4">
-                <label
-                  htmlFor="shippingWard"
-                  className="block text-sm font-medium text-gray-700 mb-1 required-label"
-                >
-                  Phường/Xã {/* "Ward" */}
-                </label>
-                {/* Could be a select input */}
-                <input
-                  id="shippingWard"
-                  name="ward"
-                  type="text"
-                  value={shippingForm.ward}
-                  onChange={handleShippingInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
-                  required
-                  placeholder="Chọn Phường/Xã" // Placeholder
-                />
-                {/* {formErrors.ward && <p className="text-red-500 text-xs mt-1">Phường/Xã là bắt buộc</p>} */}
-              </div>
-              {/* Street/Building/House Number */}
-              <div className="mt-4">
-                <label
-                  htmlFor="shippingAddress"
-                  className="block text-sm font-medium text-gray-700 mb-1 required-label"
-                >
-                  Tòa nhà, số nhà, tên đường{" "}
-                  {/* "Building, house number, street name" */}
-                </label>
-                <input
-                  id="shippingAddress"
-                  name="address"
-                  type="text"
-                  value={shippingForm.address}
-                  onChange={handleShippingInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500 required-input"
-                  required
-                  placeholder="Tòa nhà, số nhà, tên đường" // Placeholder from image
-                />
-                {/* {formErrors.address && <p className="text-red-500 text-xs mt-1">Tòa nhà, số nhà, tên đường là bắt buộc</p>} */}
-              </div>
-              {/* Detailed Address / Note */}
-              <div className="mt-4">
-                <label
-                  htmlFor="shippingAddressDetail"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Chi tiết địa chỉ (Vd: Địa chỉ gần đó,...)
-                  {/* "Detailed address note" */}
-                </label>
-                <textarea
-                  id="shippingAddressDetail"
-                  name="addressDetail"
-                  value={shippingForm.addressDetail}
-                  onChange={handleShippingInputChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-blue-500"
-                  rows="2"
-                  placeholder="Chi tiết địa chỉ (Vd: Địa chỉ gần đó,...)" // Placeholder from image
-                />
-              </div>
             </div>
-          </div>
 
-          {/* --- Column 2: Shipping Method, Payment, Voucher (Mua online, Phương thức thanh toán, Voucher và Coupon) --- */}
-          <div className="md:col-span-1 space-y-4">
-            {/* Shipping Method Section */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              {" "}
-              {/* Container block */}
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Mua online {/* "Online Purchase" */}
-              </h3>{" "}
-              {/* Heading */}
-              {/* Shipping Option */}
-              <label className="flex items-center text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="shippingMethod"
-                  value="standard"
-                  checked={selectedShippingMethod === "standard"}
-                  onChange={() => setSelectedShippingMethod("standard")}
-                  className="form-radio text-blue-600"
-                />
-                <span className="ml-2">
-                  Giao hàng tiêu chuẩn (3 - 6 ngày) (Giao giờ hành chính)
-                </span>{" "}
-                {/* Text from image */}
-              </label>
-              {/* Add other shipping options if needed */}
-            </div>
-            {/* Payment Method Section */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              {" "}
-              {/* Container block */}
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">
-                Phương thức thanh toán {/* "Payment Method" */}
-              </h3>{" "}
-              {/* Heading */}
-              {/* Display selected method and Change button */}
-              <div className="flex justify-between items-center">
-                <span className="text-gray-700">
-                  {selectedPaymentMethod === "cod" &&
-                    "Trả tiền mặt khi nhận hàng (COD)"}
-                  {selectedPaymentMethod === "vnpay" && "Thanh toán VNPAY"}{" "}
-                  {/* Example VNPAY */}
-                  {/* Add other payment method display */}
-                  {!selectedPaymentMethod && "Chọn phương thức"}{" "}
-                  {/* Fallback if none selected */}
-                </span>
-                <button
-                  type="button" // Important: prevent form submission
-                  onClick={openPaymentModal}
-                  className="text-blue-600 hover:underline font-semibold text-sm" // Style as link
-                >
-                  Thay đổi {/* "Change" */}
-                </button>
-              </div>
-            </div>
-            {/* Voucher and Coupon Section */}
-            <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
-              {" "}
-              {/* Container block, added space */}
-              <div className="flex justify-between items-center">
-                {" "}
-                {/* Flex for heading and link */}
-                <h3 className="text-xl font-semibold text-gray-800">
-                  Voucher và Coupon
-                </h3>{" "}
-                {/* Heading */}
-                {/* Link to view all vouchers - Triggers VoucherModal */}
-                {/* Assuming this is a link/button that triggers the modal provided before */}
-                {/* Pass vouchers data and trigger function here if needed */}
-                <button
-                  type="button"
-                  onClick={openVoucherModal}
-                  className="text-gray-600 hover:underline font-semibold text-sm"
-                >
-                  Xem tất cả {/* "View all" */}
-                </button>
-              </div>
-              {/* Voucher Input and Apply Button */}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Nhập mã giảm giá (nếu có)" // Placeholder from image
-                  value={voucherCode}
-                  onChange={(e) => setVoucherCode(e.target.value)}
-                  className={`flex-grow border rounded px-3 py-2 text-sm focus:outline-none ${
-                    error && error.includes("Mã")
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  }`} // Red border on voucher error
-                />
-                <button
-                  type="button"
-                  onClick={handleApplyVoucher}
-                  className="flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold text-sm"
-                >
-                  Áp dụng {/* "Apply" */}
-                </button>
-              </div>
-              {/* Display applied discount code/message/amount (Optional feedback) */}
-              {appliedDiscount > 0 && error === null && (
-                <p className="text-green-600 text-sm mt-1">
-                  Giảm giá đã áp dụng: {formatVND(appliedDiscount)}
-                </p>
-              )}
-              {error &&
-                error.includes("Mã") && ( // Only show voucher-specific error here
-                  <p className="text-red-600 text-sm mt-1">{error}</p>
-                )}
-            </div>{" "}
-            {/* End Voucher Section */}
-            {/* Hidden sections */}
-            {/* Bạn có phiếu mua hàng? (Removed) */}
-            {/* Yêu cầu thêm (Removed) */}
-            {/* Yêu cầu xuất hoá đơn (Removed) */}
-          </div>
-
-          {/* --- Column 3: Order Summary (Đơn hàng) --- */}
-          {/* Make this column sticky or use a flex layout if needed */}
-          <div className="md:col-span-1 space-y-4">
-            {" "}
-            {/* Container column */}
-            <div className="bg-white p-6 rounded-lg shadow-md space-y-4 sticky top-24">
-              {" "}
-              {/* Sticky top for summary */}
-              <h3 className="text-xl font-bold text-gray-800 mb-4">
-                Đơn hàng {/* "Order" */}
-              </h3>{" "}
-              {/* Heading */}
-              {/* List Cart Items in Summary */}
-              {cartItems && cartItems.length > 0 ? (
-                <div className="space-y-4 border-b border-gray-200 pb-4">
-                  {cartItems.map((item) => (
-                    // Single Item Row in Summary
-                    <div key={item.id} className="flex gap-4 items-start">
-                      {" "}
-                      {/* Use gap and align items start */}
-                      {/* Item Image (Smaller) */}
-                      <img
-                        src={item.image} // Use main image URL
-                        alt={item.name}
-                        className="w-16 h-16 object-cover rounded-md flex-shrink-0" // Smaller size
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+              <h3 className="text-xl font-semibold text-gray-900 mb-5 border-b pb-3">
+                Vận chuyển & Thanh toán
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-800 mb-2">
+                    Phương thức vận chuyển
+                  </h4>
+                  <div className="space-y-2">
+                    <label className="flex items-center p-3 border rounded-lg hover:border-blue-500 cursor-pointer transition-all">
+                      <input
+                        type="radio"
+                        name="shippingMethodRadio"
+                        value="standard"
+                        checked={selectedShippingMethod === "standard"}
+                        onChange={() => setSelectedShippingMethod("standard")}
+                        className="form-radio h-4 w-4 text-blue-600 mr-3 focus:ring-blue-500"
                       />
-                      {/* Item Details and Quantity */}
-                      <div className="flex-grow text-sm">
-                        {" "}
-                        {/* Use text-sm */}
-                        <h4 className="font-semibold text-gray-800">
-                          {item.name}
-                        </h4>{" "}
-                        {/* Darker, semibold */}
-                        {/* Assuming additional info like product code and size/color shown here */}
-                        <p className="text-gray-600 text-xs">10F24P...</p>{" "}
-                        {/* Placeholder code from image */}
-                        <p className="text-gray-600 text-xs">
-                          {item.size || "N/A"}, {item.color || "N/A"}
-                        </p>{" "}
-                        {/* Size/Color example */}
-                        {/* Simple Quantity Display or Input if needed */}
-                        {/* If editing quantity in summary needed, use FaMinus/FaPlus */}
-                        <div className="flex items-center mt-2">
-                          {/* Example Quantity Control */}
-                          {/* Assuming you might still need +/- on summary, adapted from cart panel */}
-                          {/* Remove completely if summary is read-only for quantity */}
-                          <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item.id, -1)}
-                              className="px-1 py-0.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-                              disabled={item.quantity === 1} // Keep quantity 1 rule
-                              aria-label={`Decrease quantity of ${item.name}`}
-                            >
-                              {" "}
-                              <FaMinus size={10} />{" "}
-                            </button>
-                            <span className="px-1 text-xs font-semibold text-gray-800 border-l border-r border-gray-300 min-w-[20px] text-center">
-                              {item.quantity}
-                            </span>{" "}
-                            {/* Quantity display */}
-                            <button
-                              type="button"
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="px-1 py-0.5 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-                              disabled={true} // Disable increment
-                              aria-label={`Increase quantity of ${item.name} (disabled)`}
-                            >
-                              {" "}
-                              <FaPlus size={10} />{" "}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      {/* Item Line Total Price */}
-                      <div className="font-bold text-gray-800 flex-shrink-0 text-sm text-right">
-                        {" "}
-                        {/* Text-right aligns price */}
-                        {/* Calculate and display total price for THIS item line (price * quantity) */}
-                        {formatVND((item.price || 0) * (item.quantity || 0))}
-                      </div>
+                      <span className="text-sm">
+                        Giao hàng tiêu chuẩn (Miễn phí)
+                      </span>
+                    </label>
+                    <label className="flex items-center p-3 border rounded-lg hover:border-blue-500 cursor-pointer transition-all">
+                      <input
+                        type="radio"
+                        name="shippingMethodRadio"
+                        value="express"
+                        checked={selectedShippingMethod === "express"}
+                        onChange={() => setSelectedShippingMethod("express")}
+                        className="form-radio h-4 w-4 text-blue-600 mr-3 focus:ring-blue-500"
+                      />
+                      <span className="text-sm">
+                        Giao hàng nhanh ({formatPrice(30000)})
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-800 mb-2">
+                    Phương thức thanh toán
+                  </h4>
+                  <div className="p-3 border rounded-lg bg-gray-50">
+                    <label className="flex items-center cursor-default">
+                      <input
+                        type="radio"
+                        name="paymentMethodRadio"
+                        value="online_payos"
+                        checked={true}
+                        readOnly
+                        className="form-radio h-4 w-4 text-blue-600 mr-3 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Thanh toán trực tuyến qua PayOS
+                      </span>
+                    </label>
+                  </div>
+                  {/* Add PaymentMethodModal trigger if you offer other methods like COD that don't go through this form's submit */}
+                  {/* <button type="button" onClick={openPaymentModal} className="text-sm font-medium text-blue-600 hover:underline mt-2">Chọn phương thức khác</button> */}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Mã giảm giá
+                </h3>
+                {availableApiVouchers.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={openVoucherModal}
+                    className="text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    Chọn hoặc nhập mã
+                  </button>
+                )}
+              </div>
+              {appliedVoucher ? (
+                <div className="p-3 bg-green-50 border border-green-300 rounded-md text-sm">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-semibold text-green-700">
+                        {appliedVoucher.name}
+                      </p>
+                      <p className="text-xs text-green-600">
+                        Đã áp dụng: - {formatPrice(calculatedDiscount)}
+                      </p>
                     </div>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={handleRemoveAppliedVoucher}
+                      className="text-xs font-medium text-red-500 hover:underline"
+                    >
+                      Hủy
+                    </button>
+                  </div>
                 </div>
               ) : (
-                // Message if cart is empty (should be caught by useEffect redirect, but defensive)
-                <p className="text-gray-500 text-center italic pb-4 border-b border-gray-200">
-                  Giỏ hàng trống
-                </p>
-              )}{" "}
-              {/* End cart items check */}
-              {/* Price Breakdown Summary */}
-              <div className="space-y-2 text-gray-800 text-sm">
-                {" "}
-                {/* Added spacing and text size */}
-                <div className="flex justify-between">
-                  <span>Tổng giá trị đơn hàng</span> {/* "Subtotal" */}
-                  <span>{formatVND(subtotal)}</span>{" "}
-                  {/* Use subtotal from context */}
-                </div>
-                <div className="flex justify-between">
-                  <span>Phí vận chuyển</span> {/* "Shipping Cost" */}
-                  <span className="font-medium">
-                    {formatVND(shippingCost)}
-                  </span>{" "}
-                  {/* Use calculated shipping cost */}
-                </div>
-                <div className="flex justify-between font-semibold">
-                  {" "}
-                  {/* Make discount line bold */}
-                  <span className="text-red-600">Giảm giá</span>{" "}
-                  {/* "Discount" in red */}
-                  <span>-{formatVND(appliedDiscount)}</span>{" "}
-                  {/* Display calculated discount, maybe red color */}
-                </div>
-                {/* Hidden lines */}
-                {/* ROUTINE Reward (Removed) */}
-                {/* Số điểm tích luỹ dự kiến (Removed) */}
-              </div>
-              {/* Final Total (Thành tiền) */}
-              <div className="flex justify-between items-center pt-4 border-t border-gray-200 text-gray-900 font-bold">
-                {" "}
-                {/* Border top, bold */}
-                <span className="text-lg">Thành tiền</span>{" "}
-                {/* "Total Amount" */}
-                <span className="text-xl">
-                  {formatVND(totalAfterDiscount)}
-                </span>{" "}
-                {/* Display calculated total */}
-              </div>
-              {/* Order Button */}
-              <button
-                type="submit" // Submit the main form
-                className="w-full bg-black text-white px-6 py-3 rounded-md font-semibold hover:bg-gray-800 transition-colors mt-4 text-lg" // Styled button, added top margin
-              >
-                Đặt hàng {/* "Place Order" */}
-              </button>
-              {/* Terms and Conditions */}
-              <div className="mt-4 text-center text-xs text-gray-600">
-                Khi tiếp tục, bạn đồng ý với các{" "}
-                <Link
-                  to="/terms"
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  Điều khoản & Điều kiện
-                </Link>{" "}
-                và{" "}
-                <Link
-                  to="/policy"
-                  className="text-blue-600 hover:underline font-medium"
-                >
-                  Chính sách của chúng tôi
-                </Link>
-                . {/* Placeholder links */}
-              </div>
-              {/* --- End Order Summary Section --- */}
-              {/* Global Error Display (e.g., for submission failure or validation summary) */}
-              {error && (
-                <div
-                  className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
-                  role="alert"
-                >
-                  {/* Check if error includes "Mã" to maybe handle that separately near voucher field */}
-                  <span className="block sm:inline">{error}</span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nhập mã voucher"
+                    value={voucherCodeInput}
+                    onChange={(e) => setVoucherCodeInput(e.target.value)}
+                    className={`checkout-input flex-grow ${
+                      error &&
+                      (error.toLowerCase().includes("voucher") ||
+                        error.toLowerCase().includes("mã"))
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-gray-300 focus:ring-blue-500"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyVoucherByInput}
+                    className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-md font-semibold text-sm transition-colors flex-shrink-0"
+                  >
+                    Áp dụng
+                  </button>
                 </div>
               )}
-            </div>{" "}
-            {/* End Sticky Container */}
+              {error &&
+                (error.toLowerCase().includes("voucher") ||
+                  error.toLowerCase().includes("mã")) && (
+                  <p className="text-red-500 text-xs mt-1.5">{error}</p>
+                )}
+              {isLoadingVouchers && (
+                <p className="text-xs text-gray-500 mt-2">Đang tải...</p>
+              )}
+            </div>
           </div>
-        </div>{" "}
-        {/* End main grid */}
-      </form>{" "}
-      {/* End form */}
-      {/* --- Modals (Rendered outside the main grid) --- */}
-      {/* Payment Method Modal */}
-      <PaymentMethodModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)} // Simple close handler
-        onMethodSelected={handlePaymentMethodSelected} // Handler when a method is chosen
-        currentMethod={selectedPaymentMethod} // Pass current method to modal
-      />
+
+          {/* Column 3: Order Summary */}
+          <div className="lg:col-span-1">
+            <div className="bg-white p-6 rounded-xl shadow-lg space-y-4 sticky top-8 md:top-24">
+              {" "}
+              {/* Adjusted sticky top */}
+              <h3 className="text-xl font-bold text-gray-900 pb-3 border-b border-gray-200">
+                Tóm tắt đơn hàng
+              </h3>
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-2 no-scrollbar mb-3 custom-scrollbar-thin">
+                {itemsToCheckout.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex gap-3 items-center text-sm py-2 border-b border-gray-100 last:border-b-0"
+                  >
+                    <img
+                      src={item.image || "https://via.placeholder.com/64"}
+                      alt={item.name}
+                      className="w-12 h-12 object-cover rounded-md flex-shrink-0 shadow-sm"
+                    />
+                    <div className="flex-grow min-w-0">
+                      <h4 className="font-medium text-gray-800 leading-tight truncate">
+                        {item.name}
+                      </h4>
+                      <p className="text-xs text-gray-500">SL: 1</p>
+                    </div>
+                    <div className="font-medium text-gray-700 flex-shrink-0">
+                      {formatPrice(item.price)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-1.5 text-sm pt-3 border-t border-gray-200">
+                <div className="flex justify-between text-gray-600">
+                  <span>Tạm tính ({itemsToCheckout.length} sp):</span>{" "}
+                  <span>{formatPrice(currentSubtotal)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>Phí vận chuyển:</span>{" "}
+                  <span className="font-medium">
+                    {currentShippingCost === 0 ? (
+                      <span className="text-green-600">Miễn phí</span>
+                    ) : (
+                      formatPrice(currentShippingCost)
+                    )}
+                  </span>
+                </div>
+                {calculatedDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 font-medium">
+                    <span>Giảm giá Voucher:</span>{" "}
+                    <span>-{formatPrice(calculatedDiscount)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-between items-baseline pt-3 border-t-2 border-gray-300 text-gray-900 font-bold">
+                <span className="text-lg">Thành tiền:</span>
+                <span className="text-2xl text-red-600">
+                  {formatPrice(finalTotal)}
+                </span>
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmittingOrder || itemsToCheckout.length === 0}
+                className="w-full bg-red-600 text-white px-6 py-3.5 rounded-lg font-semibold hover:bg-red-700 transition-colors mt-4 text-base disabled:bg-gray-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
+              >
+                {isSubmittingOrder ? (
+                  <FaSpinner className="animate-spin inline mr-2" />
+                ) : null}
+                {isSubmittingOrder ? "ĐANG XỬ LÝ..." : "TIẾP TỤC THANH TOÁN"}
+              </button>
+              {error &&
+                !(
+                  error.toLowerCase().includes("voucher") ||
+                  error.toLowerCase().includes("mã")
+                ) && (
+                  <p className="text-red-500 text-xs mt-2 text-center">
+                    {error}
+                  </p>
+                )}
+              <div className="mt-4 text-center text-xs text-gray-500">
+                Bằng việc Đặt hàng, bạn đồng ý với{" "}
+                <Link to="/terms" className="text-blue-600 hover:underline">
+                  Điều khoản
+                </Link>{" "}
+                &{" "}
+                <Link to="/policy" className="text-blue-600 hover:underline">
+                  Chính sách
+                </Link>{" "}
+                của Retrend.
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+
       <AnimatePresence>
-        {/* Render VoucherModal only when isVoucherModalOpen state is true */}
+        {isPaymentModalOpen && (
+          <PaymentMethodModal
+            isOpen={isPaymentModalOpen}
+            onClose={closePaymentModal}
+            onMethodSelected={handlePaymentMethodSelected}
+            currentMethod={selectedPaymentMethodDisplay}
+          />
+        )}
         {isVoucherModalOpen && (
           <VoucherModal
-            isOpen={isVoucherModalOpen} // Controls the modal's visibility
-            onClose={closeVoucherModal} // Handler to close the modal (e.g., from the modal's close button or backdrop click)
-            vouchers={voucherCode} // Pass the available vouchers data to the modal
+            isOpen={isVoucherModalOpen}
+            onClose={closeVoucherModal}
+            vouchers={availableApiVouchers}
+            onVoucherSelect={handleVoucherSelectedFromModal}
+            appliedVoucherCode={appliedVoucher?.code}
           />
         )}
       </AnimatePresence>
-    </div> // End main page container
+      <style jsx global>{`
+        .checkout-input {
+          @apply w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500;
+        }
+        .custom-scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .custom-scrollbar-thin::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background: #a1a1a1;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </div>
   );
 }

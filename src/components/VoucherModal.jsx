@@ -11,7 +11,7 @@ const VoucherModal = ({ isOpen, onClose, vouchers }) => {
   if (!isOpen) return null;
 
   // Pagination logic
-  const itemsPerPage = 3; // Number of vouchers per page displayed in modal
+  const itemsPerPage = 2; // Number of vouchers per page displayed in modal
   const totalPages = Math.ceil(vouchers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentVouchers = vouchers.slice(startIndex, startIndex + itemsPerPage);

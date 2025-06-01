@@ -5,14 +5,14 @@ import { ArrowLeft, User, Mail, Phone, MapPin } from 'lucide-react'; // Import r
 
 // You'll need a way to get a specific user's detailed data
 // For now, let's re-use the mock data structure but assume it fetches just one
-// In a real app, you'd fetch from an API: /api/admin/users/:userId
+// In a real app, you'd fetch from an API: /services/admin/users/:userId
  const allAdminUsersData = [ // Include admin/editor here for admin's view
-    { id: 1, name: 'Admin User', email: 'admin@retrend.com', role: 'admin', lastActive: '2025-04-30', status: 'active', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=AU&radius=50', phone: '111-222-3333', address: '123 Admin St' },
-    { id: 2, name: 'Sarah Johnson', email: 'user1@example.com', role: 'customer', lastActive: '2025-04-25', status: 'active', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=SJ&radius=50', phone: '555-123-4567', address: '789 Oak Ave' },
-    { id: 3, name: 'Michael Chen', email: 'user2@example.com', role: 'customer', lastActive: '2025-04-20', status: 'inactive', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=MC&radius=50', phone: '555-987-6543', address: '101 Pine Blvd' },
-     { id: 4, name: 'Jessica Smith', email: 'user3@example.com', role: 'editor',lastActive: '2025-04-29', status: 'active', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=JS&radius=50', phone: '555-444-5555', address: '222 Cedar Lane' },
-    { id: 5, name: 'Customer Alpha', email: 'customerA@example.com', role: 'customer',lastActive: '2025-05-01', status: 'active', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=CA&radius=50', phone: '555-888-9999', address: '333 Maple Dr' },
-    { id: 6, name: 'Inactive Customer', email: 'inactiveC@example.com', role: 'customer', lastActive: '2025-03-15', status: 'inactive', avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=IC&radius=50', phone: null, address: null},
+    { id: 1, name: 'Admin User', email: 'admin@retrend.com', role: 'admin', lastActive: '2025-04-30', status: 'active', avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=AU&radius=50', phone: '111-222-3333', address: '123 Admin St' },
+    { id: 2, name: 'Sarah Johnson', email: 'user1@example.com', role: 'customer', lastActive: '2025-04-25', status: 'active', avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=SJ&radius=50', phone: '555-123-4567', address: '789 Oak Ave' },
+    { id: 3, name: 'Michael Chen', email: 'user2@example.com', role: 'customer', lastActive: '2025-04-20', status: 'inactive', avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=MC&radius=50', phone: '555-987-6543', address: '101 Pine Blvd' },
+     { id: 4, name: 'Jessica Smith', email: 'user3@example.com', role: 'editor',lastActive: '2025-04-29', status: 'active', avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=JS&radius=50', phone: '555-444-5555', address: '222 Cedar Lane' },
+    { id: 5, name: 'Customer Alpha', email: 'customerA@example.com', role: 'customer',lastActive: '2025-05-01', status: 'active', avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=CA&radius=50', phone: '555-888-9999', address: '333 Maple Dr' },
+    { id: 6, name: 'Inactive Customer', email: 'inactiveC@example.com', role: 'customer', lastActive: '2025-03-15', status: 'inactive', avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=IC&radius=50', phone: null, address: null},
 
  ];
 
@@ -35,7 +35,7 @@ export default function AdminCustomerDetails() {
             setIsLoading(true);
             setError(null);
             try {
-                // In a real app: const response = await fetch(`/api/admin/users/${userId}`);
+                // In a real app: const response = await fetch(`/services/admin/users/${userId}`);
                 // In a real app: if (!response.ok) throw new Error('Failed to fetch user');
                 // In a real app: const data = await response.json();
 

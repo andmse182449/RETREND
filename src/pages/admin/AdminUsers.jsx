@@ -14,7 +14,7 @@ const allUsers = [
     role: 'admin',
     lastActive: '2025-04-30',
     status: 'active',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=AU&radius=50' // Using dicebear for diverse avatars
+    avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=AU&radius=50' // Using dicebear for diverse avatars
   },
   {
     id: 2,
@@ -23,7 +23,7 @@ const allUsers = [
     role: 'customer',
     lastActive: '2025-04-25',
     status: 'active',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=SJ&radius=50'
+    avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=SJ&radius=50'
   },
   {
     id: 3,
@@ -32,7 +32,7 @@ const allUsers = [
     role: 'customer',
     lastActive: '2025-04-20',
     status: 'inactive',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=MC&radius=50'
+    avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=MC&radius=50'
   },
   {
     id: 4,
@@ -41,7 +41,7 @@ const allUsers = [
     role: 'editor', // This user should NOT be displayed
     lastActive: '2025-04-29',
     status: 'active',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=JS&radius=50'
+    avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=JS&radius=50'
   },
   {
     id: 5,
@@ -50,7 +50,7 @@ const allUsers = [
     role: 'customer',
     lastActive: '2025-05-01',
     status: 'active',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=CA&radius=50'
+    avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=CA&radius=50'
   },
    {
     id: 6,
@@ -59,7 +59,7 @@ const allUsers = [
     role: 'customer',
     lastActive: '2025-03-15',
     status: 'inactive',
-    avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=IC&radius=50'
+    avatar: 'https://services.dicebear.com/7.x/initials/svg?seed=IC&radius=50'
   },
 ]
 // ---------------------------------------------

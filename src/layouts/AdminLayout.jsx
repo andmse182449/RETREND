@@ -5,9 +5,8 @@ import {
   FaBox,
   FaShoppingCart,
   FaUsers,
-  FaTag // Importing FaTag for the Vouchers icon
-} from "react-icons/fa"; // Importing icons
-
+  FaTag 
+} from "react-icons/fa";
 export default function AdminLayout() {
   return (
     <div className="min-h-screen flex bg-gray-50">

@@ -1,36 +1,93 @@
-import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import authApiService from '../../services/AuthApiService'; // Adjust path as needed
 
 export default function SignUpPage() {
   const [form, setForm] = useState({
+    username: '', // Added username field
     email: '',
     password: '',
     confirmPassword: ''
-  })
-  const [error, setError] = useState('')
-  const navigate = useNavigate()
+  });
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState(''); // For success messages
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-  }
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match')
-      return
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setIsLoading(true);
+
+    // Client-side validation
+    if (!form.username || !form.email || !form.password || !form.confirmPassword) {
+      setError('All fields are required.');
+      setIsLoading(false);
+      return;
     }
-    // Mock sign up success
-    localStorage.setItem('user', JSON.stringify({ email: form.email, role: 'customer' }))
-    navigate('/')
-  }
+    if (form.password !== form.confirmPassword) {
+      setError('Passwords do not match.');
+      setIsLoading(false);
+      return;
+    }
+    // Optional: Add more specific password strength validation here if needed
+
+    try {
+      const response = await authApiService.registerCustomer(
+        form.email,
+        form.username,
+        form.password
+      );
+
+      console.log('Registration response:', response);
+
+      if (response.success) {
+        setSuccessMessage(response.messages || 'Registration successful! Please log in.');
+        // Optionally, clear the form
+        setForm({ username: '', email: '', password: '', confirmPassword: '' });
+        // Navigate to login page after a short delay or let user click
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000); // Navigate after 3 seconds
+      } else {
+        // If success is false, the API should ideally send a message in 'messages'
+        setError(response.messages || 'Registration failed. Please try again.');
+      }
+    } catch (apiError) {
+      console.error('Registration failed:', apiError);
+      setError(apiError.data?.message || apiError.message || 'An unexpected error occurred during registration.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="h-screen overflow-hidden flex justify-center items-start pt-20 bg-beige px-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <h2 className="text-2xl font-extrabold text-center mb-6">Sign Up</h2>
-        {error && <p className="text-red-600 text-center mb-4">{error}</p>}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <h2 className="text-3xl font-extrabold text-center mb-6 text-gray-900">Create your Account</h2>
+        {error && <p className="text-red-600 text-center mb-4 py-2 bg-red-100 rounded">{error}</p>}
+        {successMessage && <p className="text-green-600 text-center mb-4 py-2 bg-green-100 rounded">{successMessage}</p>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+              Username
+            </label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              value={form.username}
+              onChange={handleChange}
+              required
+              className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition"
+              placeholder="Choose a username"
+            />
+          </div>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
@@ -58,7 +115,7 @@ export default function SignUpPage() {
               onChange={handleChange}
               required
               className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-gray-800 transition"
-              placeholder="Enter your password"
+              placeholder="Enter your password (min. 6 characters)" // Example placeholder
             />
           </div>
           <div>
@@ -78,12 +135,13 @@ export default function SignUpPage() {
           </div>
           <button
             type="submit"
-            className="w-full bg-gray-900 text-white py-3 rounded-md font-semibold hover:bg-gray-700 transition"
+            disabled={isLoading}
+            className="w-full bg-gray-900 text-white py-3 rounded-md font-semibold hover:bg-gray-700 transition disabled:opacity-50"
           >
-            Sign Up
+            {isLoading ? 'Signing Up...' : 'Sign Up'}
           </button>
         </form>
-        <p className="text-center text-gray-600 mt-4">
+        <p className="text-center text-gray-600 mt-6">
           Already have an account?{' '}
           <Link to="/login" className="text-gray-900 font-semibold hover:underline">
             Sign In
@@ -91,5 +149,5 @@ export default function SignUpPage() {
         </p>
       </div>
     </div>
-  )
+  );
 }
