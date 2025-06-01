@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@payos/payos-checkout": "^1.0.8",
-    "@react-three/fiber": "^8.18.0",
     "@tanstack/react-query": "^4.36.1",
     "@tanstack/react-query-devtools": "^4.36.1",
     "antd": "^5.8.6",
