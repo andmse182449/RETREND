@@ -81,8 +81,7 @@ const banners = [
     content: (
       <section className="relative h-full w-full bg-gray-900">
         <img
-          // src="https://images.pexels.com/photos/2983464/pexels-photo-2983464.jpeg"
-          src="https://res.cloudinary.com/dcwyv9jsj/image/upload/v1749006186/472383753_2011603172690441_4505506586210734455_n_yryoqi.jpg"
+          src="https://images.pexels.com/photos/2983464/pexels-photo-2983464.jpeg"
           className="absolute inset-0 w-full h-full object-cover opacity-70"
           alt="Autumn collection preview"
         />
