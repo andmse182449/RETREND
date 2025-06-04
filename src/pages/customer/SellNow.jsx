@@ -8,6 +8,8 @@ import {
   FaAlignLeft,
   FaSave,
 } from "react-icons/fa"; // Added more icons
+import { sellerCreateProduct } from '../../services/ProductService'; 
+
 
 export default function SellNow() {
   const [productName, setProductName] = useState("");
@@ -15,6 +17,9 @@ export default function SellNow() {
   const [price, setPrice] = useState("");
   const [images, setImages] = useState([]); // Array to hold File objects or preview URLs
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState(null);
+
 
   // Handle image selection and preview
   const handleImageChange = (event, index) => {
@@ -45,77 +50,83 @@ export default function SellNow() {
     );
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    // Basic validation
-    if (
-      !productName.trim() ||
-      !description.trim() ||
-      !price ||
-      images.length === 0
-    ) {
-      alert("Vui lòng điền đầy đủ thông tin và tải lên ít nhất 1 ảnh.");
-      return;
+const handleSubmit = async (event) => {
+  event.preventDefault();
+  if (!productName.trim() || !description.trim() || !price || images.length === 0) {
+    alert("Vui lòng điền đầy đủ thông tin và tải lên ít nhất 1 ảnh.");
+    return;
+  }
+
+  setIsLoading(true); // Add isLoading state to SellNow.js
+  setFormError(null);   // Add formError state to SellNow.js
+
+  try {
+    // Step 1: Upload images (if not already URLs)
+    // This part remains conceptual as it depends on your image upload service
+    let uploadedImageUrls = [];
+    if (images.every(img => typeof img === 'string')) { // If images are already URLs
+        uploadedImageUrls = images;
+    } else { // If images are File objects, they need to be uploaded
+        // Placeholder for image upload logic - replace with your actual implementation
+        console.log("Simulating image upload...");
+        for (const imageFile of images) {
+            if (imageFile instanceof File) {
+                // Mock upload: just use a placeholder or a name. 
+                // In real app: await uploadToCloudinary(imageFile);
+                await new Promise(r => setTimeout(r, 200)); // Simulate delay
+                uploadedImageUrls.push(`https://res.cloudinary.com/dcwyv9jsj/image/upload/mock_${imageFile.name}`);
+            } else if (typeof imageFile === 'string') { 
+                uploadedImageUrls.push(imageFile);
+            }
+        }
+        if (uploadedImageUrls.length === 0 && images.length > 0) {
+            throw new Error("Lỗi tải ảnh lên.");
+        }
+    }
+    
+    // Step 2: Get current user's username
+    // This should ideally come from an auth context or a more secure storage
+    const storedUser = localStorage.getItem("user");
+    let currentUsername = "default_seller"; // Fallback username
+    if (storedUser) {
+      try {
+        currentUsername = JSON.parse(storedUser).username || currentUsername;
+      } catch (e) { console.error("Could not parse username from stored user"); }
     }
 
-    console.log("Submitting product:", {
-      productName,
-      description,
+    // Step 3: Prepare product data for your API
+    const productDataForApi = {
+      username: currentUsername, // Seller's username
+      name: productName,
+      description: description,
       price: parseFloat(price),
-      images, // These are File objects
-    });
+      imageUrl: uploadedImageUrls.join(','), // Comma-separated string of URLs
+      // status: "Available" // Backend might set default status
+    };
 
-    // --- TODO: API Submission Logic ---
-    // 1. Upload images to a service like Cloudinary (get back URLs)
-    //    This usually involves sending FormData for each image.
-    //    Example:
-    //    const uploadedImageUrls = [];
-    //    for (const imageFile of images) {
-    //      if (imageFile) {
-    //          const formData = new FormData();
-    //          formData.append('file', imageFile);
-    //          formData.append('upload_preset', 'YOUR_CLOUDINARY_UPLOAD_PRESET');
-    //          const res = await fetch(`https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload`, {
-    //              method: 'POST',
-    //              body: formData,
-    //          });
-    //          const data = await res.json();
-    //          uploadedImageUrls.push(data.secure_url);
-    //      }
-    //    }
-    //
-    // 2. Create a payload for your backend API
-    //    const productPayload = {
-    //      productName,
-    //      productDescription: description,
-    //      price: parseFloat(price),
-    //      imageUrl: uploadedImageUrls.join(','), // Comma-separated string of URLs
-    //      username: "currentLoggedInUserUsername", // Get this from auth context/localStorage
-    //      status: "Available" // or "Pending" for review
-    //    };
-    //
-    // 3. Send productPayload to your backend endpoint (e.g., POST /v1.0/product/create)
-    //    const token = localStorage.getItem('authToken');
-    //    const response = await fetch(`${API_BASE_URL}/v1.0/product/create`, { // Adjust endpoint
-    //        method: 'POST',
-    //        headers: {
-    //            'Content-Type': 'application/json',
-    //            'Authorization': `Bearer ${token}`
-    //        },
-    //        body: JSON.stringify(productPayload)
-    //    });
-    //    if (response.ok) {
-    //        alert("Sản phẩm đã được đăng bán thành công!");
-    //        // Reset form or navigate away
-    //        setProductName(''); setDescription(''); setPrice(''); setImages([]); setImagePreviews([]);
-    //    } else {
-    //        const errorData = await response.json().catch(()=>({message: "Lỗi không xác định"}));
-    //        alert(`Lỗi đăng sản phẩm: ${errorData.message || response.statusText}`);
-    //    }
-    // --- END TODO ---
+    // Step 4: Call the sellerCreateProduct service function
+    const createdProduct = await sellerCreateProduct(productDataForApi);
 
-    alert("Chức năng đăng bán đang được phát triển!"); // Placeholder
-  };
+    console.log("Product created successfully:", createdProduct);
+    alert("Sản phẩm đã được đăng bán thành công!");
+    
+    // Reset form
+    setProductName(''); 
+    setDescription(''); 
+    setPrice(''); 
+    setImages([]); 
+    setImagePreviews([]);
+    // Optionally navigate to the new product's page or user's listings page
+    // navigate(`/products/${createdProduct.id}`); 
+
+  } catch (error) {
+    console.error("Lỗi đăng sản phẩm:", error);
+    setFormError(error.message || "Đã có lỗi xảy ra. Vui lòng thử lại.");
+    alert(`Lỗi đăng sản phẩm: ${error.message || "Vui lòng thử lại."}`);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // --- Animated Background Style ---
   // Using inline style for simplicity, can be moved to CSS/Tailwind config

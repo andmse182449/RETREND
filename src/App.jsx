@@ -33,6 +33,8 @@ import PaymentSuccess from "./components/PaymentSuccess";
 import PaymentFailed from "./components/PaymentFailed";
 import PaymentResultPage from "./components/PaymentResultPage";
 import EmbeddedCheckoutPage from "./pages/payment/PayOS";
+import AdminShipping from "./pages/admin/AdminShippingMethods";
+
 
 function App() {
   return (
@@ -70,6 +72,7 @@ function App() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="shipping" element={<AdminShipping />} />
             <Route path="users/:userId" element={<AdminCustomerDetails />} />
             <Route path="vouchers" element={<AdminVouchers />} />
           </Route>

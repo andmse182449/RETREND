@@ -22,6 +22,18 @@ import { getAllAvailableProducts } from "../../services/ProductService"; // Or "
 const BANNER_HEIGHT = "700px"; // You can adjust this
 const AUTOROTATE_INTERVAL = 5000; // 5 seconds
 
+const customImages = [
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939819/images_1_njxwuz.jpg",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939818/used-imported-second-hand-baseball-varsity-jacket_eu0okm.jpg",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939817/used-imported-second-hand-baseball-varsity-jacket-500x500_kzdlyq.webp",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939808/8_723238913bea4fc4b75a72dccc08061b_master_hhnrvi.webp",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939931/images_2_slyxjw.jpg",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939743/images_coqvb5.jpg",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939919/mens-jacket-columbia-thrifted-red-amerikanika-thrift.com-1_k6txi9.webp",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748936954/img-4397-1_wk18dd.webp",
+  "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939939/images_3_lhndw3.jpg",
+];
+
 // For the "Recently Listed" section with "Load More"
 const INITIAL_RECENTLY_LISTED_LOAD_COUNT = 8;
 const LOAD_MORE_RECENTLY_LISTED_COUNT = 8;
@@ -69,7 +81,8 @@ const banners = [
     content: (
       <section className="relative h-full w-full bg-gray-900">
         <img
-          src="https://images.pexels.com/photos/2983464/pexels-photo-2983464.jpeg"
+          // src="https://images.pexels.com/photos/2983464/pexels-photo-2983464.jpeg"
+          src="https://res.cloudinary.com/dcwyv9jsj/image/upload/v1749006186/472383753_2011603172690441_4505506586210734455_n_yryoqi.jpg"
           className="absolute inset-0 w-full h-full object-cover opacity-70"
           alt="Autumn collection preview"
         />
@@ -248,25 +261,30 @@ const banners = [
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5, duration: 0.7 }}
             >
-              {[...Array(9)].map((_, i) => (
+              {/* Map over a slice of customImages or use modulo to cycle through them if fewer than 9 */}
+              {/* We want to display 9 images for the grid */}
+              {Array.from({ length: 9 }).map((_, i) => (
                 <motion.div
-                  key={i}
+                  key={`mystery-img-${i}`} // More specific key
                   className="aspect-square overflow-hidden rounded-xl relative group"
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.3 }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-purple-900/60 to-transparent z-10" />
-                  {i === 4 && (
+                  {i === 4 && ( // Center mystery icon (for the 5th image in 0-indexed grid)
                     <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                      {" "}
-                      <div className="absolute animate-ping-slow bg-white/30 w-28 h-28 rounded-full" />
-                      <span className="text-4xl z-10 drop-shadow-md">🎁</span>{" "}
+                      <div className="absolute animate-ping-slow bg-white/30 w-20 h-20 md:w-28 md:h-28 rounded-full" />{" "}
+                      {/* Adjusted size */}
+                      <span className="text-3xl md:text-4xl z-10 drop-shadow-md">
+                        🎁
+                      </span>
                     </div>
                   )}
                   <img
-                    src={`https://picsum.photos/seed/${i}/600/600`}
+                    // Use customImages array, and cycle through it if there are fewer than 9 custom images
+                    src={customImages[i % customImages.length]}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    alt={`Fashion item ${i + 1}`}
+                    alt={`Mystery item preview ${i + 1}`}
                     loading="lazy"
                   />
                 </motion.div>

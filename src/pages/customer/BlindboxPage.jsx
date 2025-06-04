@@ -1,153 +1,72 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+// src/pages/BlindboxPage.js
+import React, { useState, useEffect, useMemo } from "react"; // Added useMemo
+import { Link } from "react-router-dom"; // Keep if any links are needed
 import { FaShoppingCart, FaClock, FaBoxOpen, FaTimes } from "react-icons/fa";
-import { motion, AnimatePresence } from "framer-motion"; // Added AnimatePresence for transitions
+import { motion, AnimatePresence } from "framer-motion";
 
-// --- Mock Item Data (Replace with API Fetch in a real app) ---
-const fullItemList = [
-  {
-    id: 1,
-    name: "Nike Air Force 1",
-    price: "1441.20",
-    imageURL: "https://via.placeholder.com/150/FAF0E6/333333?text=Item+1",
-    value: "1441.20",
-  },
-  {
-    id: 2,
-    name: "OFF-WHITE Binder",
-    price: "1324.80",
-    imageURL: "https://via.placeholder.com/150/F0E68C/333333?text=Item+2",
-    value: "1324.80",
-  },
-  {
-    id: 3,
-    name: "Nike Air Max 97",
-    price: "1262.40",
-    imageURL: "https://via.placeholder.com/150/D2B48C/333333?text=Item+3",
-    value: "1262.40",
-  },
-  {
-    id: 4,
-    name: "Vintage Denim",
-    price: "35.00",
-    imageURL: "https://via.placeholder.com/150/FAF0E6/333333?text=Item+4",
-    value: "35.00",
-  },
-  {
-    id: 5,
-    name: "Summer Dress",
-    price: "20.00",
-    imageURL: "https://via.placeholder.com/150/F0E68C/333333?text=Item+5",
-    value: "20.00",
-  },
-  {
-    id: 6,
-    name: "Graphic Tee",
-    price: "15.99",
-    imageURL: "https://via.placeholder.com/150/D2B48C/333333?text=Item+6",
-    value: "15.99",
-  },
-  // Add more items here to test pagination & scrolling
-  {
-    id: 7,
-    name: "Slim Fit Jeans",
-    price: "25.00",
-    imageURL: "https://via.placeholder.com/150/FAF0E6/333333?text=Item+7",
-    value: "25.00",
-  },
-  {
-    id: 8,
-    name: "Summer Scarf",
-    price: "8.50",
-    imageURL: "https://via.placeholder.com/150/F0E68C/333333?text=Item+8",
-    value: "8.50",
-  },
-  {
-    id: 9,
-    name: "Leather Belt",
-    price: "40.00",
-    imageURL: "https://via.placeholder.com/150/D2B48C/333333?text=Item+9",
-    value: "40.00",
-  },
-  {
-    id: 10,
-    name: "Sneaker Cleaner",
-    price: "12.00",
-    imageURL: "https://via.placeholder.com/150/FAF0E6/333333?text=Item+10",
-    value: "12.00",
-  },
-  {
-    id: 11,
-    name: "Hoodie",
-    price: "60.00",
-    imageURL: "https://via.placeholder.com/150/F0E68C/333333?text=Item+11",
-    value: "60.00",
-  },
-  {
-    id: 12,
-    name: "Baseball Cap",
-    price: "22.00",
-    imageURL: "https://via.placeholder.com/150/D2B48C/333333?text=Item+12",
-    value: "22.00",
-  },
-  {
-    id: 13,
-    name: "Watch",
-    price: "200.00",
-    imageURL: "https://via.placeholder.com/150/FAF0E6/333333?text=Item+13",
-    value: "200.00",
-  },
-  {
-    id: 14,
-    name: "Socks (3-pack)",
-    price: "18.00",
-    imageURL: "https://via.placeholder.com/150/F0E68C/333333?text=Item+14",
-    value: "18.00",
-  },
-  {
-    id: 15,
-    name: "Backpack",
-    price: "75.00",
-    imageURL: "https://via.placeholder.com/150/D2B48C/333333?text=Item+15",
-    value: "75.00",
-  },
-  {
-    id: 16,
-    name: "Beanie",
-    price: "20.00",
-    imageURL: "https://via.placeholder.com/150/FAF0E6/333333?text=Item+16",
-    value: "20.00",
-  },
-  {
-    id: 17,
-    name: "Sunglasses",
-    price: "50.00",
-    imageURL: "https://via.placeholder.com/150/F0E68C/333333?text=Item+17",
-    value: "50.00",
-  },
-  {
-    id: 18,
-    name: "Wallet",
-    price: "30.00",
-    imageURL: "https://via.placeholder.com/150/D2B48C/333333?text=Item+18",
-    value: "30.00",
-  },
-];
-// ---------------------------------------------
+// --- API Service Import ---
+import { getProductsByBlindboxName } from "../../services/ProductService"; // Adjust path
+// --- Cart Context (Optional, if you need formatPrice or add to cart from here) ---
+import { useCart } from "../../context/CartContext";
 
-const ITEMS_PER_PAGE = 6; // Number of items to show per page in the grid
+const ITEMS_PER_PAGE = 6; // Number of items to show per page in the animated grid
 
-const BlindboxPage = () => {
+export default function BlindboxPage() {
+  // --- State for API Data ---
+  const [blindboxProducts, setBlindboxProducts] = useState([]); // Products for this blindbox
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // --- Existing State ---
   const [timeLeft, setTimeLeft] = useState({
     hours: 24,
     minutes: 59,
     seconds: 59,
   });
+  const [currentPage, setCurrentPage] = useState(0);
+  const [slideDirection, setSlideDirection] = useState("right");
 
-  const [currentPage, setCurrentPage] = useState(0); // State for pagination
-  const [slideDirection, setSlideDirection] = useState("right"); // For animation direction
+  const { formatPrice } = useCart();
 
-  // --- Timer Effect ---
+  // Local formatPrice if not using context or for specific formatting here
+  const formatPriceLocal = (price) => {
+    const numPrice = parseFloat(price);
+    if (isNaN(numPrice)) return "N/A";
+    // return new Intl.NumberFormat("en-US", {
+    //   style: "currency",
+    //   currency: "USD",
+    // }).format(numPrice);
+    // Or use your VND formatter if prices are in VND
+    return numPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "đ";
+  };
+
+  // --- Effect to Fetch Blindbox Products ---
+  useEffect(() => {
+    const blindboxName = "WearAgain Wonderbox"; // Or get from URL params/props
+
+    const fetchBlindboxItems = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const productsData = await getProductsByBlindboxName(blindboxName);
+
+        setBlindboxProducts(productsData || []);
+      } catch (err) {
+        console.error(
+          `Failed to fetch products for blindbox "${blindboxName}":`,
+          err
+        );
+        setError(err.message || `Could not load items for ${blindboxName}.`);
+        setBlindboxProducts([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBlindboxItems();
+  }, []); // Fetch once on mount for a fixed blindboxName
+
+  // --- Timer Effect (Keep as is) ---
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -156,212 +75,304 @@ const BlindboxPage = () => {
           return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
         if (prev.hours > 0)
           return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        // Optional: Clear interval when timer reaches zero
-        // if (prev.hours === 0 && prev.minutes === 0 && prev.seconds === 1) clearInterval(timer);
         return prev;
       });
     }, 1000);
-    return () => clearInterval(timer); // Cleanup timer on unmount
+    return () => clearInterval(timer);
   }, []);
 
-  // Calculate items to display on the current page
-  const startIndex = currentPage * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const displayedItems = fullItemList.slice(startIndex, endIndex);
+  // --- Pagination Logic based on fetched blindboxProducts ---
+  const displayedItems = useMemo(() => {
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    return blindboxProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [blindboxProducts, currentPage]);
 
-  // Calculate total pages for pagination dots
-  const totalPages = Math.ceil(fullItemList.length / ITEMS_PER_PAGE);
+  const totalPages = useMemo(() => {
+    return Math.ceil(blindboxProducts.length / ITEMS_PER_PAGE);
+  }, [blindboxProducts]);
 
-  // --- Timer Display Formatting ---
   const formatTime = (time) => (time < 10 ? `0${time}` : time);
 
-  // Handle page change with direction awareness for animations
   const changePage = (newPage) => {
-    // Determine the slide direction based on page change
+    if (newPage < 0 || newPage >= totalPages) return; // Prevent out-of-bounds
     setSlideDirection(newPage > currentPage ? "right" : "left");
     setCurrentPage(newPage);
   };
 
-  // Animation variants for page transitions
   const pageVariants = {
-    enter: (direction) => ({
+    /* ... (keep as is) ... */ enter: (direction) => ({
       x: direction === "right" ? 300 : -300,
       opacity: 0,
     }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
+    center: { x: 0, opacity: 1 },
     exit: (direction) => ({
       x: direction === "right" ? -300 : 300,
       opacity: 0,
     }),
   };
+  const pageTransition = { type: "tween", ease: "easeInOut", duration: 0.4 };
 
-  // Animation transition settings
-  const pageTransition = {
-    type: "tween",
-    ease: "easeInOut",
-    duration: 0.4,
-  };
+  // --- Render Logic ---
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-12 px-4 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+        <p className="ml-3 text-gray-700">Loading Blindbox Details...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-12 px-4 text-center">
+        <h2 className="text-2xl font-semibold text-red-600">
+          Error Loading Blindbox
+        </h2>
+        <p className="text-gray-700 mt-2">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  if (!isLoading && blindboxProducts.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-100 py-12 px-4 text-center">
+        <FaBoxOpen className="text-6xl text-gray-300 mx-auto mb-4" />
+        <h2 className="text-2xl font-semibold text-gray-700">
+          Blindbox Not Found or Empty
+        </h2>
+        <p className="text-gray-600 mt-2">
+          This blindbox might not be available or contains no items.
+        </p>
+        <Link
+          to="/products"
+          className="mt-6 inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
+        >
+          Explore Other Products
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 text-text-DEFAULT">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-indigo-900 py-10 px-4 text-slate-100 selection:bg-purple-500 selection:text-white">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-beige-light rounded-2xl shadow-xl p-8"
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="bg-slate-800/50 backdrop-blur-lg rounded-2xl shadow-2xl p-6 md:p-8 border border-slate-700/50"
         >
           {/* Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2 text-text-dark">
-              Off-White Lucky
+            <h1 className="text-4xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-amber-300 tracking-tight">
+              WearAgain Wonderbox{" "}
+              {/* Hardcoded name, or from API if blindbox has its own details */}
             </h1>
-            <div className="text-2xl font-bold text-accent-brown mb-4">
-              $4.99
+            <div className="text-2xl font-bold text-purple-300 mb-4">
+              {formatPriceLocal(119000)}{" "}
+              {/* Example Price for the box itself */}
             </div>
-            <div className="flex justify-center gap-4 text-sm">
-              <div className="flex items-center bg-beige-medium px-3 py-1 rounded-full text-text-dark">
-                <FaClock className="mr-2 text-gray-700" />
-                {formatTime(timeLeft.hours)}h {formatTime(timeLeft.minutes)}m{" "}
-                {formatTime(timeLeft.seconds)}s left
-              </div>
+            <div className="flex justify-center items-center bg-slate-700/50 px-4 py-2 rounded-full text-sm text-slate-300 shadow-inner max-w-xs mx-auto">
+              <FaClock className="mr-2 text-purple-400" />
+              {formatTime(timeLeft.hours)}h {formatTime(timeLeft.minutes)}m{" "}
+              {formatTime(timeLeft.seconds)}s left
             </div>
           </div>
-          
-          {/* Main Content Grid (3 columns on large screens) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
             {/* Column 1: Box Visual */}
-            <div className="lg:col-span-1 relative group">
-              <div className="bg-white border-2 border-gray-900 p-6 rounded-lg aspect-square flex flex-col items-center justify-center text-text-dark">
-                <div className="absolute top-2 left-2 bg-red-600 text-beige-light px-2 py-1 rounded text-xs font-semibold">
-                  SECOND HAND
+            <div className="lg:col-span-1 relative group flex justify-center items-center min-h-[300px] md:min-h-0">
+              <div className="bg-gradient-to-br from-slate-700 to-slate-800 border-2 border-purple-500/50 p-6 rounded-xl aspect-square flex flex-col items-center justify-center text-slate-100 shadow-xl w-full max-w-xs md:max-w-sm transform group-hover:scale-105 transition-transform duration-300">
+                <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-0.5 rounded-md text-xs font-semibold shadow">
+                  LIMITED
                 </div>
-                <div className="text-4xl font-bold mb-2">LUCKY</div>
-                <div className="w-full border-t-2 border-gray-900 my-4"></div>
-                <div className="text-2xl font-mono">BOX-0231</div>
-                <div className="mt-4 text-lg">An official box by Leofie</div>
+                <FaBoxOpen className="text-6xl md:text-7xl text-purple-400 mb-4 group-hover:animate-pulse" />
+                <div className="text-3xl md:text-4xl font-bold mb-1 tracking-wider">
+                  WONDER
+                </div>
+                <div className="w-3/4 border-t-2 border-purple-400/50 my-3"></div>
+                <div className="text-xl md:text-2xl font-mono opacity-80">
+                  BOX-2024
+                </div>
+                <div className="mt-3 text-xs text-slate-400">
+                  Official Retrend Mystery Box
+                </div>
               </div>
             </div>
-            
-            {/* Column 2: Details (Item Grid, Pagination, Button) */}
-            <div className="md:col-span-2 lg:col-span-1 flex flex-col">
-              {/* Insufficient Credits Notice */}
-              <div className="mb-6 bg-red-100 p-4 rounded-xl border border-red-300 text-red-800">
-                <div className="text-red-700 font-semibold mb-2">
-                  Insufficient credits
+
+            {/* Column 2: Item Grid & Actions */}
+            <div className="lg:col-span-1 flex flex-col h-full justify-between">
+              {" "}
+              {/* Added h-full and justify-between */}
+              <div>
+                {" "}
+                {/* Wrapper for content above button */}
+                <div className="mb-4 bg-red-800/30 p-3 rounded-lg border border-red-700/50 text-red-200 text-sm">
+                  <p className="font-semibold">Credits Required</p>
+                  <p>
+                    To open this box, please add {formatPriceLocal(119000)} to
+                    your wallet.
+                  </p>
                 </div>
-                <p className="text-sm text-red-600">
-                  To open this box, please add $4.99 to your account's wallet
-                </p>
-              </div>
-              
-              {/* Item Grid with Animation */}
-              <div className="relative h-[200px] mb-4 overflow-hidden">
-                <AnimatePresence initial={false} custom={slideDirection} mode="wait">
-                  <motion.div
-                    key={currentPage}
+                <div className="relative h-[200px] sm:h-[220px] mb-4 overflow-hidden bg-slate-700/30 rounded-lg p-2 shadow-inner">
+                  <AnimatePresence
+                    initial={false}
                     custom={slideDirection}
-                    variants={pageVariants}
-                    initial="enter"
-                    animate="center"
-                    exit="exit"
-                    transition={pageTransition}
-                    className="absolute inset-0"
+                    mode="wait"
                   >
-                    <div className="grid grid-cols-3 gap-3 h-full">
-                      {displayedItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden group"
-                        >
-                          {/* Item Image */}
-                          <img
-                            src={item.imageURL}
-                            alt={item.name}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                          {/* Name and Price Overlay */}
-                          <div className="absolute inset-x-0 bottom-0 bg-black bg-opacity-70 text-beige-light text-xs p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <p className="font-semibold truncate">{item.name}</p>
-                            <p className="text-right text-yellow-300 font-bold">
-                              ${parseFloat(item.price).toFixed(2)}
-                            </p>
+                    <motion.div
+                      key={currentPage}
+                      custom={slideDirection}
+                      variants={pageVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={pageTransition}
+                      className="absolute inset-2" // Added inset-2 for padding
+                    >
+                      <div className="grid grid-cols-3 gap-2 h-full">
+                        {displayedItems.map(
+                          (
+                            item // item is from transformed API data
+                          ) => (
+                            <div
+                              key={item.id}
+                              className="relative aspect-square bg-slate-600/50 rounded-md overflow-hidden group shadow-md"
+                            >
+                              <img
+                                src={item.image} // Use product.image (main image from transform)
+                                alt={item.name}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                              />
+                              <div className="absolute inset-x-0 bottom-0 bg-black/70 text-white text-[10px] p-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 leading-tight">
+                                <p className="font-semibold truncate">
+                                  {item.name}
+                                </p>
+                                <p className="text-right text-purple-300 font-bold">
+                                  {formatPrice(item.priceVND || item.price)}{" "}
+                                  {/* Use formatted price */}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        )}
+                        {/* Fill empty slots if displayedItems < ITEMS_PER_PAGE */}
+                        {Array.from({
+                          length: Math.max(
+                            0,
+                            ITEMS_PER_PAGE - displayedItems.length
+                          ),
+                        }).map((_, i) => (
+                          <div
+                            key={`empty-${i}`}
+                            className="aspect-square bg-slate-700/40 rounded-md flex items-center justify-center"
+                          >
+                            <FaBoxOpen className="text-slate-600/50 text-2xl" />
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-              
-              {/* Pagination Dots with Active Animations */}
-              {totalPages > 1 && (
-                <div className="flex justify-center space-x-2 mb-6 flex-shrink-0">
-                  {Array.from({ length: totalPages }, (_, index) => (
-                    <button
-                      key={index}
-                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                        currentPage === index
-                          ? "bg-gray-800 scale-125"
-                          : "bg-gray-300 hover:bg-gray-400"
-                      }`}
-                      onClick={() => changePage(index)}
-                      aria-label={`Go to page ${index + 1}`}
-                    ></button>
-                  ))}
+                        ))}
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
-              )}
-              
-              {/* Add Credits Button */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center space-x-1.5 mb-6 flex-shrink-0">
+                    {Array.from({ length: totalPages }, (_, index) => (
+                      <button
+                        key={index}
+                        className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                          currentPage === index
+                            ? "bg-purple-400 scale-125"
+                            : "bg-slate-600 hover:bg-slate-500"
+                        }`}
+                        onClick={() => changePage(index)}
+                        aria-label={`Go to page ${index + 1}`}
+                      ></button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="mt-auto flex-shrink-0">
-                <button className="w-full bg-gray-900 text-white py-4 rounded-xl font-bold hover:bg-gray-800 transition-colors flex items-center justify-center gap-3">
-                  <FaShoppingCart className="text-xl" />
-                  ADD CREDITS
+                <button className="w-full bg-gradient-to-r from-purple-600 to-indigo-700 text-white py-3.5 rounded-xl font-bold hover:from-purple-700 hover:to-indigo-800 transition-colors flex items-center justify-center gap-2.5 shadow-lg hover:shadow-purple-500/30 text-sm">
+                  <FaShoppingCart className="w-5 h-5" />
+                  ADD CREDITS & OPEN
                 </button>
               </div>
             </div>
-            
+
             {/* Column 3: Potential Drops Table */}
-            <div className="md:col-span-2 lg:col-span-1">
-              <h2 className="text-xl font-bold mb-4 text-text-dark text-center lg:text-left">
+            <div className="lg:col-span-1">
+              <h2 className="text-xl font-bold mb-4 text-slate-200 text-center lg:text-left">
                 Potential Drops
               </h2>
-              <div className="overflow-y-auto max-h-[400px] border border-gray-300 rounded-lg bg-white shadow-inner relative">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-beige-medium text-text-dark sticky top-0 z-20 shadow-sm">
-                      <th className="text-left py-3 px-4 border-b border-gray-300 min-w-[150px] backdrop-blur-sm bg-opacity-90">Item</th>
-                      <th className="text-right py-3 px-4 border-b border-gray-300 min-w-[100px] backdrop-blur-sm bg-opacity-90">Market Value</th>
+              <div className="overflow-y-auto max-h-[400px] border border-slate-700/50 rounded-lg bg-slate-800/30 shadow-inner custom-scrollbar-thin">
+                <table className="w-full text-xs sm:text-sm border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-slate-700/70 backdrop-blur-sm text-slate-300 ">
+                      <th className="text-left py-2.5 px-3 font-semibold">
+                        Item
+                      </th>
+                      <th className="text-right py-2.5 px-3 font-semibold">
+                        Market Value
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {fullItemList.map((item) => (
-                      <tr
-                        key={`table-${item.id}`}
-                        className="border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="py-3 px-4">{item.name}</td>
-                        <td className="py-3 px-4 text-right font-semibold">
-                          ${parseFloat(item.value).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {blindboxProducts.map(
+                      (
+                        item // Iterate over all fetched products for this blindbox
+                      ) => (
+                        <tr
+                          key={`table-${item.id}`}
+                          className="border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/40 transition-colors"
+                        >
+                          <td
+                            className="py-2.5 px-3 truncate max-w-[150px] sm:max-w-xs"
+                            title={item.name}
+                          >
+                            {item.name}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-medium text-purple-300">
+                            {formatPrice(item.priceVND || item.price)}{" "}
+                            {/* Use field from transformed data */}
+                          </td>
+                        </tr>
+                      )
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
-          
-          {/* Footer Note */}
-          <div className="mt-8 text-center text-xs text-gray-500">
-            * Actual contents may vary. No returns on mystery boxes.
+
+          <div className="mt-8 text-center text-xs text-slate-400">
+            * Actual contents are random. Listed items indicate possible
+            rewards. No returns on mystery boxes.
           </div>
         </motion.div>
       </div>
+      {/* Custom scrollbar style for table */}
+      <style jsx global>{`
+        .custom-scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar-thin::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+        }
+        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+      `}</style>
     </div>
   );
-};
-
-export default BlindboxPage;
+}
