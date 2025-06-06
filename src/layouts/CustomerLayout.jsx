@@ -26,15 +26,11 @@ export default function CustomerLayout() {
   const {
       cartItems,
       totalItemsCount,
-      subtotal,
+      subtotalOfAllItems,
       formatPrice,
       removeItem,
       totalCartItemCount,
       openCartPanel
-      // If using context for cart panel:
-      // isCartPanelOpen,
-      // openCartPanel,
-      // closeCartPanel,
   } = useCart();
 
   // Using local state for cart open/close as per your provided "before" code
@@ -179,7 +175,7 @@ export default function CustomerLayout() {
                  <div className="p-6 border-t border-gray-300 bg-white sticky bottom-0 z-10">
                     <div className="flex justify-between items-center mb-6">
                        <div className="font-semibold text-xl text-gray-800">Tạm tính</div>
-                       <div className="font-bold text-xl">{formatPrice(subtotal)}</div>
+                       <div className="font-bold text-xl">{formatPrice(subtotalOfAllItems)}</div>
                     </div>
                    {cartItems.length > 0 && (
                        <Link to="/checkout" onClick={closeCart} className="w-full py-3 rounded transition-colors text-lg font-semibold text-center inline-block bg-black text-white hover:bg-gray-800 shadow-lg"> Thanh toán </Link> 

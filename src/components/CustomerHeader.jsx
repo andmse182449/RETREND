@@ -1,13 +1,13 @@
 // src/components/CustomerHeader.js
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Link } from "react-router-dom";
 import {
   FaSearch,
   FaUser,
   FaShoppingCart,
   FaChevronDown,
-} from 'react-icons/fa';
-import { AnimatePresence, motion } from 'framer-motion';
+} from "react-icons/fa";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function CustomerHeader({
   isSearchOpen,
@@ -21,7 +21,7 @@ export default function CustomerHeader({
   return (
     // REMOVED 'fixed top-0 left-0' and potentially 'z-40' if not needed for other absolute elements within header
     // Added 'relative' for the search dropdown to position correctly
-    <header className="bg-white shadow-sm w-full h-16 flex items-center relative"> 
+    <header className="bg-white shadow-sm w-full h-16 flex items-center relative">
       <div className="max-w-7xl mx-auto px-4 w-full flex justify-between items-center">
         {/* Logo */}
         <Link
@@ -39,18 +39,38 @@ export default function CustomerHeader({
           <Link to="/products" className="hover:text-gray-600">
             TẤT CẢ SẢN PHẨM
           </Link>
-          <div className="relative group"> {/* This 'relative' is fine for dropdown positioning */}
+          <div className="relative group">
+            {" "}
+            {/* This 'relative' is fine for dropdown positioning */}
             <button className="flex items-center text-sm font-medium text-gray-800 hover:text-gray-600 cursor-pointer">
-              CHÍNH SÁCH MUA HÀNG{' '}
+              CHÍNH SÁCH MUA HÀNG{" "}
               <FaChevronDown className="ml-1 w-3 h-3 transition-transform duration-200 group-hover:rotate-180" />
             </button>
             <div className="absolute hidden group-hover:block bg-white shadow-lg rounded py-2 w-52 z-20 top-full border border-gray-200">
               {/* Dropdown links */}
-              <Link to="/returns" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Chính sách đổi / trả</Link>
-              <Link to="/shipping" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Chính sách vận chuyển</Link>
-              <Link to="/contact" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Liên hệ</Link>
+              <Link
+                to="/returns"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Chính sách đổi / trả
+              </Link>
+              <Link
+                to="/shipping"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Chính sách vận chuyển
+              </Link>
+              <Link
+                to="/contact"
+                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              >
+                Liên hệ
+              </Link>
             </div>
           </div>
+          <Link to="/feedback" className="hover:text-gray-600">
+            ĐÁNH GIÁ
+          </Link>
         </nav>
 
         {/* Icon-only Navigation / Actions */}
@@ -58,7 +78,7 @@ export default function CustomerHeader({
           <button
             onClick={toggleSearch}
             className="text-gray-800 hover:text-gray-600 w-6 h-6 flex items-center justify-center"
-            aria-label={isSearchOpen ? 'Close search' : 'Open search'}
+            aria-label={isSearchOpen ? "Close search" : "Open search"}
           >
             <FaSearch size={20} />
           </button>
@@ -72,12 +92,14 @@ export default function CustomerHeader({
           <button
             onClick={onOpenCart}
             className="flex items-center justify-center text-gray-800 hover:text-gray-600 relative w-6 h-6" // 'relative' for badge positioning
-            aria-label={`Shopping cart with ${totalItemsCount || 0} unique items`}
+            aria-label={`Shopping cart with ${
+              totalItemsCount || 0
+            } unique items`}
           >
             <FaShoppingCart size={20} />
             {(totalItemsCount || 0) > 0 && (
               <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center leading-none">
-                {(totalItemsCount || 0) > 9 ? '9+' : totalItemsCount}
+                {(totalItemsCount || 0) > 9 ? "9+" : totalItemsCount}
               </span>
             )}
           </button>
@@ -97,7 +119,7 @@ export default function CustomerHeader({
             // The header is now part of the normal flow, so z-index might need adjustment if it overlaps siblings in CustomerLayout.
             // Giving it a moderate z-index to ensure it's above subsequent sibling content in the main flow if any,
             // but lower than modals.
-            className="w-full bg-gray-100 border-b border-gray-300 shadow-md absolute top-full left-0 z-10" 
+            className="w-full bg-gray-100 border-b border-gray-300 shadow-md absolute top-full left-0 z-10"
           >
             <form
               onSubmit={handleSearchSubmit}
@@ -124,8 +146,19 @@ export default function CustomerHeader({
                   className="absolute inset-y-0 right-0 flex items-center justify-center px-4 text-gray-600 hover:text-amber-500"
                   aria-label="Perform search"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
                   </svg>
                 </button>
               </div>

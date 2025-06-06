@@ -34,6 +34,8 @@ import PaymentFailed from "./components/PaymentFailed";
 import PaymentResultPage from "./components/PaymentResultPage";
 import EmbeddedCheckoutPage from "./pages/payment/PayOS";
 import AdminShipping from "./pages/admin/AdminShippingMethods";
+import FeedbackPage from "./pages/customer/FeedbackPage";
+import PurchaseSellerPakagePage from "./pages/customer/PurchaseSellerPackagePage";
 
 
 function App() {
@@ -59,10 +61,12 @@ function App() {
             <Route path="test" element={<CustomerProductsPage />} />
             <Route path="dashboard" element={<SellerDashboard />} />
             <Route path="blindbox" element={<BlindboxPage />} />
+            <Route path="feedback" element={<FeedbackPage />} />
             <Route path="order/result" element={<PaymentResultPage />} />
           <Route path="payment-successed" element={<PaymentSuccess />} />
           <Route path="payment-failed" element={<PaymentFailed />} />
             <Route path="/checkout-embedded" element={<EmbeddedCheckoutPage />} />
+            <Route path="seller-register" element={<PurchaseSellerPakagePage />} />
           </Route>
 
           {/* Admin routes */}

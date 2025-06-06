@@ -1,4 +1,3 @@
-// src/pages/HomePage.js
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -16,11 +15,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 import QuickViewModal from "../../components/QuickViewModal"; // Adjust path
-// Ensure this path is correct and functions are exported
-import { getAllAvailableProducts } from "../../services/ProductService"; // Or "../../services/ProductService"
+import { getAllAvailableProducts } from "../../services/ProductService";
 
-const BANNER_HEIGHT = "700px"; // You can adjust this
-const AUTOROTATE_INTERVAL = 5000; // 5 seconds
+const BANNER_HEIGHT = "700px";
+const AUTOROTATE_INTERVAL = 5000;
 
 const customImages = [
   "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939819/images_1_njxwuz.jpg",
@@ -34,14 +32,10 @@ const customImages = [
   "https://res.cloudinary.com/dcwyv9jsj/image/upload/v1748939939/images_3_lhndw3.jpg",
 ];
 
-// For the "Recently Listed" section with "Load More"
 const INITIAL_RECENTLY_LISTED_LOAD_COUNT = 8;
 const LOAD_MORE_RECENTLY_LISTED_COUNT = 8;
-
-// For the dedicated "Featured Items" section (fixed number)
 const FEATURED_ITEMS_COUNT = 4;
 
-// Steps data for "Sell" banner
 const steps = [
   {
     title: "Snap & List",
@@ -62,6 +56,7 @@ const steps = [
     color: "green-600",
   },
 ];
+
 const stepStaggerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -69,41 +64,42 @@ const stepStaggerVariants = {
     transition: { staggerChildren: 0.2, delayChildren: 0.3 },
   },
 };
+
 const stepVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
 };
 
-// Banner data (ensure JSX is complete or simplified for this example)
 const banners = [
   {
     id: 3,
     content: (
       <section className="relative h-full w-full bg-gray-900">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent z-10"></div>
         <img
           src="https://images.pexels.com/photos/2983464/pexels-photo-2983464.jpeg"
-          className="absolute inset-0 w-full h-full object-cover opacity-70"
+          className="absolute inset-0 w-full h-full object-cover opacity-80"
           alt="Autumn collection preview"
         />
-        <div className="container h-full mx-auto px-4 flex items-center relative z-10">
+        <div className="container h-full mx-auto px-4 flex items-center relative z-20">
           <div className="max-w-2xl text-white space-y-6">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
             >
-              <span className="inline-block px-5 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm">
+              <span className="inline-block px-5 py-2 bg-white/30 backdrop-blur-md rounded-full text-sm font-medium">
                 New Arrivals
               </span>
-              <h1 className="text-4xl md:text-6xl font-bold leading-tight drop-shadow">
+              <h1 className="text-4xl md:text-6xl font-bold leading-tight drop-shadow-lg font-['Inter']">
                 Autumn Collection '25
               </h1>
-              <p className="text-xl md:text-2xl max-w-xl text-gray-200">
+              <p className="text-xl md:text-2xl max-w-xl text-gray-100 font-['Roboto']">
                 Discover timeless elegance in our curated selection of premium
                 vintage apparel
               </p>
-              <Link
-                to="/collections/autumn"
+<Link
+                to="/products"
                 className="inline-flex items-center bg-white text-gray-900 px-8 py-4 rounded-xl font-bold hover:bg-gray-100 transition-colors text-lg"
               >
                 Explore Collection <FaChevronRight className="ml-3" />
@@ -120,44 +116,40 @@ const banners = [
       <section className="relative h-full w-full bg-gradient-to-tr from-amber-100 to-blue-50">
         <div className="container mx-auto px-4 h-full flex items-center">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center w-full">
-            {" "}
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
               className="relative z-10 max-w-lg lg:max-w-full mx-auto lg:mx-0 text-center lg:text-left"
             >
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 leading-tight">
-                {" "}
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 leading-tight font-['Inter']">
                 Sell Your <br /> Pre-Loved{" "}
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-amber-500">
                   Luxury Pieces
                 </span>
               </h1>
-              <p className="text-lg md:text-xl text-gray-700 mb-6 max-w-lg mx-auto lg:mx-0">
-                {" "}
+              <p className="text-lg md:text-xl text-gray-700 mb-6 max-w-lg mx-auto lg:mx-0 font-['Roboto']">
                 Give your high-quality vintage clothing a new home easily and
                 profitably.
               </p>
               <Link
                 to="/sell"
-                className="inline-flex items-center bg-gradient-to-r from-blue-600 to-amber-500 text-white px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-xl text-lg"
+                className="inline-flex items-center bg-gradient-to-r from-blue-600 to-amber-500 text-white px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform duration-300 shadow-lg text-lg"
               >
                 <FaTag className="mr-3 text-xl" />
                 Start Selling Now
               </Link>
             </motion.div>
             <motion.div
-              className="relative z-10 w-full max-w-lg mx-auto lg:max-w-full p-6 md:p-8 bg-white/40 backdrop-blur-sm rounded-2xl border border-white/20 shadow-lg"
+              className="relative z-10 w-full max-w-lg mx-auto lg:max-w-full p-6 md:p-8 bg-white/50 backdrop-blur-md rounded-2xl border border-white/30 shadow-xl"
               initial="hidden"
               animate="visible"
               variants={stepStaggerVariants}
             >
-              <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center font-['Inter']">
                 How It Works
-              </h3>{" "}
+              </h3>
               <div className="flex items-center justify-between flex-col md:flex-row gap-6 md:gap-8">
-                {" "}
                 {steps.map((step, i) => (
                   <motion.div
                     key={i}
@@ -167,13 +159,14 @@ const banners = [
                     <div
                       className={`w-16 h-16 rounded-full bg-gradient-to-br from-${step.color}-400 to-${step.color}-600 flex items-center justify-center mb-4 text-white shadow-md`}
                     >
-                      {" "}
                       {step.icon}
                     </div>
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2 font-['Inter']">
                       {step.title}
-                    </h4>{" "}
-                    <p className="text-gray-700 text-sm">{step.text}</p>{" "}
+                    </h4>
+                    <p className="text-gray-700 text-sm font-['Roboto']">
+                      {step.text}
+                    </p>
                     {i < steps.length - 1 && (
                       <FaArrowRight className="absolute right-[-2rem] top-1/2 transform -translate-y-1/2 text-gray-400 hidden md:block" />
                     )}
@@ -193,28 +186,22 @@ const banners = [
         <div className="container h-full mx-auto px-4 flex items-center">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 w-full items-center">
             <div className="relative z-10 text-white max-w-lg lg:max-w-full mx-auto lg:mx-0">
-              {" "}
               <div className="flex flex-wrap gap-3 mb-6 justify-center lg:justify-start">
-                {" "}
-                <span className="px-4 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-sm border border-white/20">
+                <span className="px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full text-sm font-medium border border-white/30">
                   🔥 Limited Collection
                 </span>
-                <span className="flex items-center px-4 py-1.5 bg-amber-400/20 text-amber-200 rounded-full text-sm">
+                <span className="flex items-center px-4 py-1.5 bg-amber-400/30 text-amber-200 rounded-full text-sm font-medium">
                   <FaStar className="mr-2 animate-pulse" />
                   Exclusive Launch
                 </span>
               </div>
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-center lg:text-left">
-                {" "}
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-center lg:text-left font-['Inter']">
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-300 to-pink-300 drop-shadow">
-                  {" "}
                   Luxury Mystery Box
                 </span>
               </h2>
-              <div className="space-y-4 mb-8 text-lg max-w-lg mx-auto lg:mx-0">
-                {" "}
+              <div className="space-y-4 mb-8 text-lg max-w-lg mx-auto lg:mx-0 font-['Roboto']">
                 <ul className="space-y-3">
-                  {" "}
                   {[
                     "Curated Vintage Designer Pieces",
                     "Minimum 65% Off Retail Value",
@@ -227,8 +214,7 @@ const banners = [
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 + i * 0.1, duration: 0.3 }}
                     >
-                      <div className="flex-shrink-0 w-8 h-8 bg-white/10 rounded-full flex items-center justify-center text-emerald-400 border border-white/20">
-                        {" "}
+                      <div className="flex-shrink-0 w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-emerald-400 border border-white/30">
                         <FaCheck />
                       </div>
                       <span>{item}</span>
@@ -237,16 +223,14 @@ const banners = [
                 </ul>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start justify-center lg:justify-start">
-                {" "}
                 <Link
                   to="/blindbox"
-                  className="inline-flex items-center bg-gradient-to-r from-amber-300 to-pink-400 text-purple-900 px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform shadow-xl text-lg"
+                  className="inline-flex items-center bg-gradient-to-r from-amber-300 to-pink-400 text-purple-900 px-8 py-4 rounded-xl font-bold hover:scale-105 transition-transform duration-300 shadow-lg text-lg"
                 >
                   <FaShoppingCart className="mr-3 text-xl" />
                   Unlock Your Surprise Box
                 </Link>
-                <div className="bg-white/10 p-4 rounded-xl backdrop-blur-sm border border-white/20">
-                  {" "}
+                <div className="bg-white/20 p-4 rounded-xl backdrop-blur-md border border-white/30">
                   <p className="flex items-center gap-2 text-white">
                     <FaBoxOpen className="text-amber-300" />
                     <span>Only 12 Left!</span>
@@ -255,32 +239,28 @@ const banners = [
               </div>
             </div>
             <motion.div
-              className="relative grid grid-cols-3 gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10"
+              className="relative grid grid-cols-3 gap-4 p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5, duration: 0.7 }}
             >
-              {/* Map over a slice of customImages or use modulo to cycle through them if fewer than 9 */}
-              {/* We want to display 9 images for the grid */}
               {Array.from({ length: 9 }).map((_, i) => (
                 <motion.div
-                  key={`mystery-img-${i}`} // More specific key
+                  key={`mystery-img-${i}`}
                   className="aspect-square overflow-hidden rounded-xl relative group"
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.3 }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-t from-purple-900/60 to-transparent z-10" />
-                  {i === 4 && ( // Center mystery icon (for the 5th image in 0-indexed grid)
+                  {i === 4 && (
                     <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                      <div className="absolute animate-ping-slow bg-white/30 w-20 h-20 md:w-28 md:h-28 rounded-full" />{" "}
-                      {/* Adjusted size */}
+                      <div className="absolute animate-ping-slow bg-white/30 w-20 h-20 md:w-28 md:h-28 rounded-full" />
                       <span className="text-3xl md:text-4xl z-10 drop-shadow-md">
                         🎁
                       </span>
                     </div>
                   )}
                   <img
-                    // Use customImages array, and cycle through it if there are fewer than 9 custom images
                     src={customImages[i % customImages.length]}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     alt={`Mystery item preview ${i + 1}`}
@@ -301,39 +281,30 @@ export default function HomePage() {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showQuickView, setShowQuickView] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
-
-  const [allProducts, setAllProducts] = useState([]); // Stores ALL products from API
-  const [featuredProducts, setFeaturedProducts] = useState([]); // For a dedicated featured section
+  const [allProducts, setAllProducts] = useState([]);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [productError, setProductError] = useState(null);
-
   const [visibleRecentlyListedCount, setVisibleRecentlyListedCount] = useState(
     INITIAL_RECENTLY_LISTED_LOAD_COUNT
   );
 
-  // Effect for auto-rotating banners
   useEffect(() => {
     if (!autoRotate) return;
     const intervalId = setInterval(() => {
-      // Store interval ID
       setActiveIndex((prevIndex) => (prevIndex + 1) % banners.length);
     }, AUTOROTATE_INTERVAL);
-    return () => clearInterval(intervalId); // Clear interval using its ID
-  }, [autoRotate]); // banners.length is constant, so not strictly needed as dep if banners array itself doesn't change
+    return () => clearInterval(intervalId);
+  }, [autoRotate]);
 
-  // Effect for fetching products
   useEffect(() => {
     const loadInitialData = async () => {
       setIsLoadingProducts(true);
       setProductError(null);
       try {
-        const productsData = await getAllAvailableProducts(); // Fetches all products
-        const safeProductsData = productsData || []; // Ensure it's an array
-
+        const productsData = await getAllAvailableProducts();
+        const safeProductsData = productsData || [];
         setAllProducts(safeProductsData);
-
-        // Derive featured products (e.g., first N items or use getFeaturedProducts if it's a different API call)
-        // For this example, we take from `getAllAvailableProducts` result.
         setFeaturedProducts(safeProductsData.slice(0, FEATURED_ITEMS_COUNT));
       } catch (err) {
         console.error("HomePage: Error during loadInitialData", err);
@@ -347,7 +318,7 @@ export default function HomePage() {
       }
     };
     loadInitialData();
-  }, []); // Fetch on mount
+  }, []);
 
   const handleQuickView = (product) => {
     setAutoRotate(false);
@@ -358,7 +329,6 @@ export default function HomePage() {
   const handleQuickViewClose = () => {
     setShowQuickView(false);
     setSelectedProduct(null);
-    // setAutoRotate(true); // Optionally resume auto-rotation
   };
 
   const handleDotClick = (index) => {
@@ -378,14 +348,17 @@ export default function HomePage() {
   );
   const hasMoreRecentlyListed = visibleRecentlyListedCount < allProducts.length;
 
-  // Helper to render a product card (to avoid repetition)
   const renderProductCard = (product) => (
-    <div
-      key={product.id} // Ensure product has a unique id
-      className="bg-white rounded-xl shadow-lg overflow-hidden relative group transition-all duration-300 hover:shadow-2xl flex flex-col"
+    <motion.div
+      key={product.id}
+      className="bg-white rounded-xl shadow-lg overflow-hidden relative group transition-all duration-300 hover:shadow-xl flex flex-col"
+      whileHover={{ scale: 1.05 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
     >
       <Link
-        to={`/products/${product.id}`} // Ensure product.id is valid for the link
+        to={`/products/${product.id}`}
         className="block group/card flex flex-col h-full"
       >
         <div className="relative aspect-[4/5] overflow-hidden">
@@ -407,15 +380,15 @@ export default function HomePage() {
         </div>
         <div className="p-4 flex-grow flex flex-col justify-between">
           <div>
-            <h3 className="text-md font-semibold mb-1 text-gray-800 leading-tight truncate group-hover/card:text-blue-600 transition-colors">
+            <h3 className="text-md font-semibold mb-1 text-gray-800 leading-tight truncate group-hover/card:text-blue-600 transition-colors font-['Inter']">
               {product.name || "Product Name Unavailable"}
             </h3>
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-gray-500 mb-2 font-['Roboto']">
               Sold by {product.seller || "Retrend"}
             </p>
           </div>
           <div className="flex items-baseline justify-start gap-2 mt-auto">
-            <span className="text-lg font-bold text-blue-600">
+            <span className="text-lg font-bold text-blue-600 font-['Inter']">
               {typeof product.priceVND === "number"
                 ? new Intl.NumberFormat("vi-VN", {
                     style: "currency",
@@ -425,7 +398,7 @@ export default function HomePage() {
             </span>
             {typeof product.originalPriceVND === "number" &&
               product.originalPriceVND > (product.priceVND || 0) && (
-                <span className="text-gray-400 line-through text-sm">
+                <span className="text-gray-400 line-through text-sm font-['Roboto']">
                   {new Intl.NumberFormat("vi-VN", {
                     style: "currency",
                     currency: "VND",
@@ -445,13 +418,12 @@ export default function HomePage() {
       >
         <FaEye className="w-5 h-5 text-gray-700" />
       </button>
-    </div>
+    </motion.div>
   );
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col font-['Roboto']">
       <main className="flex-grow">
-        {/* Hero Section (Carousel) */}
         <section
           className="relative w-screen -mx-auto overflow-hidden bg-white"
           style={{ height: BANNER_HEIGHT }}
@@ -489,40 +461,25 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Featured Items Section */}
-        {!isLoadingProducts && !productError && featuredProducts.length > 0 && (
-          <section className="w-full bg-gray-50 py-12 md:py-16 px-4">
-            <div className="max-w-7xl mx-auto">
-              <h2 className="text-3xl font-extrabold mb-8 text-center text-gray-900 tracking-tight">
-                Featured Items
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-                {featuredProducts.map(renderProductCard)}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* Recently Listed Items Section (with Load More) */}
         <section className="w-full bg-white py-12 md:py-16 px-4">
           <div className="max-w-7xl mx-auto">
-            <h2 className="text-3xl font-extrabold mb-8 text-center text-gray-900 tracking-tight">
+            <h2 className="text-3xl font-extrabold mb-8 text-center text-gray-900 tracking-tight font-['Inter']">
               Recently Listed Items
             </h2>
             {isLoadingProducts && (
-              <p className="text-center text-gray-500 py-10">
+              <p className="text-center text-gray-500 py-10 font-['Roboto']">
                 Loading products...
               </p>
             )}
             {productError && !isLoadingProducts && (
-              <p className="text-center text-red-600 py-10">
+              <p className="text-center text-red-600 py-10 font-['Roboto']">
                 Error loading products: {productError}
               </p>
             )}
             {!isLoadingProducts &&
               !productError &&
               allProducts.length === 0 && (
-                <p className="text-center text-gray-500 py-10">
+                <p className="text-center text-gray-500 py-10 font-['Roboto']">
                   No products found at the moment. Check back soon!
                 </p>
               )}
@@ -530,7 +487,7 @@ export default function HomePage() {
               !productError &&
               recentlyListedToDisplay.length === 0 &&
               allProducts.length > 0 && (
-                <p className="text-center text-gray-500 py-10">
+                <p className="text-center text-gray-500 py-10 font-['Roboto']">
                   All products currently displayed.
                 </p>
               )}
@@ -547,7 +504,7 @@ export default function HomePage() {
               <div className="mt-12 text-center">
                 <button
                   onClick={handleLoadMoreRecentlyListed}
-                  className="inline-block bg-white text-[#A0522D] border-2 border-[#A0522D] px-8 py-3 rounded-lg font-bold transition-colors duration-300 hover:bg-[#A0522D] hover:text-white shadow-md"
+                  className="inline-block bg-gradient-to-r from-blue-600 to-amber-500 text-white px-8 py-3 rounded-lg font-bold transition-transform duration-300 hover:scale-105 shadow-md font-['Inter']"
                 >
                   Xem thêm sản phẩm
                 </button>
@@ -568,3 +525,4 @@ export default function HomePage() {
     </div>
   );
 }
+HomePage.displayName = "HomePage";
