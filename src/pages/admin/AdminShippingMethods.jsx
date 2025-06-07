@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   FaEdit,
-  FaTrash,
   FaPlus,
   FaSave,
   FaTimes,
@@ -312,86 +311,82 @@ export default function ShippingMethodsTable() {
           )}
         </AnimatePresence>
         {/* Table of Shipping Methods */}
-        {(!isLoading || shippingMethods.length > 0) &&
-          !error && ( // Only show table structure if not initial loading error and no form is open
-            <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+        {(!isLoading || shippingMethods.length > 0) && !error && (
+          <div className="bg-white rounded-lg shadow-md mt-6 border border-gray-200">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tên Phương thức
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Mô tả
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Phí
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Hành Động
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {isLoading && shippingMethods.length === 0 && (
                     <tr>
-                      <th className="th-admin-table">Tên Phương thức</th>
-                      <th className="th-admin-table">Mô tả</th>
-                      <th className="th-admin-table">Phí</th>
-                      <th className="th-admin-table text-center">Hành động</th>
+                      <td colSpan="4" className="text-center py-10">
+                        <FaSpinner className="animate-spin text-xl text-blue-500 mx-auto" />
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {isLoading &&
-                      shippingMethods.length === 0 && ( // Inline loading for table refresh
-                        <tr>
-                          <td colSpan="4" className="text-center py-10">
-                            <FaSpinner className="animate-spin text-xl text-blue-500 mx-auto" />
-                          </td>
-                        </tr>
-                      )}
-                    {!isLoading && shippingMethods.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan="4"
-                          className="px-6 py-10 text-center text-sm text-gray-500 italic"
-                        >
-                          Chưa có phương thức vận chuyển nào được cấu hình.
-                        </td>
-                      </tr>
-                    )}
-                    {shippingMethods.map((method) => (
-                      <tr
-                        key={method.shippingMethodId}
-                        className="hover:bg-gray-50 transition-colors"
+                  )}
+                  {!isLoading && shippingMethods.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan="4"
+                        className="px-6 py-10 text-center text-sm text-gray-500 italic"
                       >
-                        <td className="td-admin-table font-medium text-gray-900">
-                          {method.name}
-                        </td>
-                        <td
-                          className="td-admin-table text-gray-600 max-w-xs"
-                          title={method.description}
-                        >
-                          <span className="block truncate">
-                            {method.description || "-"}
-                          </span>
-                        </td>
-                        <td className="td-admin-table text-gray-800 font-medium">
-                          {formatPrice(method.fee)}
-                        </td>
-                        <td className="td-admin-table text-center">
+                        Chưa có phương thức vận chuyển nào được cấu hình.
+                      </td>
+                    </tr>
+                  )}
+                  {shippingMethods.map((method) => (
+                    <tr
+                      key={method.shippingMethodId}
+                      className="hover:bg-gray-50 transition"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-700">
+                        {method.name}
+                      </td>
+                      <td
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 max-w-xs"
+                        title={method.description}
+                      >
+                        <span className="block truncate">
+                          {method.description || "-"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {formatPrice(method.fee)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEditClick(method)}
-                            className="text-indigo-600 hover:text-indigo-800 mr-3 p-1.5 rounded-md hover:bg-indigo-50 transition-colors"
+                            className="p-2 rounded-full text-blue-500 hover:text-white hover:bg-blue-500 transition"
                             title="Sửa"
                           >
-                            <FaEdit size={14} />
+                            <FaEdit size={15} />
                           </button>
-                          <button
-                            onClick={() =>
-                              handleDeleteMethod(
-                                method.shippingMethodId,
-                                method.name
-                              )
-                            }
-                            disabled={isLoading}
-                            className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Xóa"
-                          >
-                            <FaTrash size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          {/* Đã bỏ nút Xóa khỏi table */}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
+        )}
         {/* Error display for list if it occurs after initial load or form is hidden */}
         {error && !isLoading && !showForm && (
           <div className="p-6 text-center text-red-500 mt-4 bg-red-50 border border-red-200 rounded-lg">

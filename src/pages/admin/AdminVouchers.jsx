@@ -88,7 +88,7 @@ export default function AdminVouchers() {
         fetchedVouchers.map((v) => ({
           ...v,
           // Ensure fields match what the UI expects, e.g., isActive from status
-          isActive: v.status ? v.status.toLowerCase() === "active" : true,
+          isActive: v.status ? v.status.toLowerCase() === "available" : true,
           type: v.discountType || (v.discountAmount > 0 ? "fixed" : "shipping"), // Ensure 'type' for displayDiscount
         }))
       );
@@ -183,13 +183,13 @@ export default function AdminVouchers() {
       if (editingVoucher) {
         // --- Update Existing Voucher ---
         const updatePayload = {
-          voucherId: editingVoucher.id,
-          // Only send fields that can be updated by this endpoint
+          voucherId: editingVoucher.voucherId ?? editingVoucher.id,
           discountAmount: payload.discountAmount,
           minOrderAmount: payload.minOrderAmount,
           expiryDate: payload.expiryDate,
-          status: voucherForm.status, // If update endpoint handles status
+          status: voucherForm.status,
         };
+        console.log("Update voucher payload:", updatePayload);
         await voucherApiService.updateVoucher(updatePayload);
         alert("Voucher updated successfully!");
       } else {
@@ -246,9 +246,9 @@ export default function AdminVouchers() {
 
   const handleToggleActiveStatus = async (voucher) => {
     const newStatus =
-      voucher.status && voucher.status.toLowerCase() === "active"
+      voucher.status && voucher.status.toLowerCase() === "available"
         ? "Inactive"
-        : "Active";
+        : "Available";
     if (
       window.confirm(
         `Bạn có muốn đổi trạng thái voucher "${voucher.code}" thành "${newStatus}"?`
@@ -257,7 +257,10 @@ export default function AdminVouchers() {
       setIsLoading(true);
       setError(null);
       try {
-        await voucherApiService.changeVoucherStatus(voucher.id, newStatus);
+        await voucherApiService.changeVoucherStatus(
+          Number(voucher.voucherId ?? voucher.id),
+          newStatus
+        );
         alert(`Trạng thái voucher "${voucher.code}" đã được cập nhật.`);
         fetchVouchers();
       } catch (err) {
@@ -508,117 +511,102 @@ export default function AdminVouchers() {
       </AnimatePresence>
 
       {/* Voucher Table */}
-      <div className="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">
+      <div className="bg-white rounded-lg shadow-md mt-6">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[768px]">
-            {" "}
-            {/* Min width for better responsive table */}
+          <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="th-admin">Mã Code</th>
-                <th className="th-admin">Giảm Giá</th>
-                <th className="th-admin">Đơn Tối Thiểu</th>
-                <th className="th-admin">Ngày Hết Hạn</th>
-                <th className="th-admin">Trạng Thái</th>
-                {/* <th className="th-admin">Lượt Dùng</th> */}
-                <th className="th-admin text-center">Hành Động</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã Code</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giảm Giá</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn Tối Thiểu</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày Hết Hạn</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng Thái</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Hành Động</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {vouchers.length === 0 && !isLoading ? (
+            <tbody className="bg-white divide-y divide-gray-200">
+              {isLoading ? (
                 <tr>
-                  <td
-                    colSpan="6"
-                    className="text-center py-10 text-gray-500 italic"
-                  >
-                    Không có voucher nào.
-                  </td>
+                  <td colSpan="6" className="text-center py-10 text-gray-500">Đang tải...</td>
+                </tr>
+              ) : vouchers.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="text-center py-10 text-gray-500">Không có voucher nào.</td>
                 </tr>
               ) : (
                 vouchers.map((voucher) => (
                   <tr
                     key={voucher.id}
-                    className={`hover:bg-gray-50 transition-colors ${
-                      !(voucher.status === "Active" || voucher.isActive)
-                        ? "bg-gray-100 opacity-70"
-                        : ""
-                    }`}
+                    className="hover:bg-gray-50 transition"
                   >
-                    <td className="td-admin font-mono font-semibold text-blue-600">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-semibold text-blue-600 flex items-center gap-2">
                       {voucher.code}
                       <button
                         onClick={() => handleCopyClick(voucher.code)}
-                        className="ml-2 text-gray-400 hover:text-blue-500"
+                        className="text-gray-400 hover:text-blue-500 transition"
                         title="Copy code"
                       >
-                        <FaClipboard size={12} />
+                        <FaClipboard size={13} />
                       </button>
                     </td>
-                    <td className="td-admin text-gray-800">
-                      {displayDiscount(voucher)}
-                    </td>
-                    <td className="td-admin text-gray-800">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{displayDiscount(voucher)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {voucher.minOrderAmount > 0
-                        ? (voucher.minOrderAmount)
+                        ? voucher.minOrderAmount.toLocaleString()
                         : "Mọi đơn"}
                     </td>
-                    <td
-                      className={`td-admin ${
-                        voucher.expiryDate &&
-                        new Date(voucher.expiryDate) < new Date() &&
-                        voucher.status !== "Expired"
-                          ? "text-red-600 font-semibold"
-                          : "text-gray-600"
-                      }`}
-                    >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(voucher.expiryDate)}
                       {voucher.expiryDate &&
                         new Date(voucher.expiryDate) < new Date() &&
                         voucher.status !== "Expired" && (
-                          <span className="ml-1 text-xs">(Hết hạn)</span>
+                          <span className="ml-1 text-xs text-red-500">(Hết hạn)</span>
                         )}
                     </td>
-                    <td className="td-admin">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          voucher.status === "Active" || voucher.isActive
-                            ? "bg-green-100 text-green-700"
-                            : voucher.status === "Inactive"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : voucher.status === "Expired"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium
+                    ${
+                      voucher.status === "Expired"
+                        ? "bg-red-100 text-red-700"
+                        : voucher.status === "Available"
+                        ? "bg-blue-100 text-blue-700"
+                        : voucher.status === "Inactive"
+                        ? "bg-gray-200 text-gray-600"
+                        : "bg-gray-100 text-gray-700"
+                    }
+                  `}
+                        style={{
+                          minWidth: 90,
+                          textAlign: "center",
+                          letterSpacing: 1,
+                        }}
                       >
-                        {voucher.status ||
-                          (voucher.isActive ? "Active" : "Inactive")}
+                        {voucher.status}
                       </span>
                     </td>
-                    {/* <td className="td-admin text-gray-500">{voucher.usageCount || 0}</td> */}
-                    <td className="td-admin text-center">
-                      <div className="flex items-center justify-center space-x-1.5">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                      <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleEditClick(voucher)}
-                          className="p-1.5 text-blue-500 hover:text-blue-700 rounded-md hover:bg-blue-50"
+                          className="p-2 rounded-full text-blue-500 hover:text-white hover:bg-blue-500 transition"
                           title="Sửa"
                         >
-                          <FaEdit size={14} />
+                          <FaEdit size={15} />
                         </button>
                         <button
-                          onClick={() =>
-                            handleDeleteClick(voucher.id, voucher.code)
-                          }
-                          className="p-1.5 text-red-500 hover:text-red-700 rounded-md hover:bg-red-50"
+                          onClick={() => handleDeleteClick(voucher.id, voucher.code)}
+                          className="p-2 rounded-full text-red-500 hover:text-white hover:bg-red-500 transition"
                           title="Xóa"
                         >
-                          <FaTrash size={14} />
+                          <FaTrash size={15} />
                         </button>
                         <button
                           onClick={() => handleToggleActiveStatus(voucher)}
-                          className={`p-1.5 rounded-md hover:bg-opacity-20 ${
+                          className={`p-2 rounded-full transition ${
                             voucher.status === "Active" || voucher.isActive
-                              ? "text-yellow-600 hover:bg-yellow-100"
-                              : "text-green-600 hover:bg-green-100"
+                              ? "text-yellow-600 hover:text-white hover:bg-yellow-400"
+                              : "text-green-600 hover:text-white hover:bg-green-500"
                           }`}
                           title={
                             voucher.status === "Active" || voucher.isActive
@@ -627,9 +615,9 @@ export default function AdminVouchers() {
                           }
                         >
                           {voucher.status === "Active" || voucher.isActive ? (
-                            <FaTimes size={15} />
+                            <FaTimes size={16} />
                           ) : (
-                            <FaCheckCircle size={15} />
+                            <FaCheckCircle size={16} />
                           )}
                         </button>
                       </div>
@@ -646,10 +634,10 @@ export default function AdminVouchers() {
           @apply block w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors;
         }
         .th-admin {
-          @apply px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap;
+          @apply px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider whitespace-nowrap;
         }
         .td-admin {
-          @apply px-4 py-3 whitespace-nowrap text-sm;
+          @apply px-4 py-3 whitespace-nowrap text-sm align-middle;
         }
       `}</style>
     </div>
