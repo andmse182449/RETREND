@@ -28,9 +28,9 @@ const simulateFetchUserData = async () => {
     try {
       const userLite = JSON.parse(storedUserLite);
       return {
-        id: userLite.userId || userLite.id || `user-${Date.now()}`, // IMPORTANT: Ensure this is the actual User ID (e.g., UUID)
+        id: userLite.userId || userLite.id || `user-${Date.now()}`,
         username: userLite.username || "testuser",
-        fullName: userLite.fullName || "Test User",
+        fullName: userLite.username || "Test User",
         email: userLite.email || "test.user@example.com",
         phone: userLite.phone || "098-765-4321",
         address: userLite.address || "456 Test Ave, Test City",
@@ -230,8 +230,7 @@ export default function ProfilePage() {
     /* ... */
   };
   const handleLogout = () => {
-    /* ... (keep as is) ... */ localStorage.removeItem("user");
-    localStorage.removeItem("authToken");
+    localStorage.clear();
     navigate("/login");
     window.location.reload();
   };

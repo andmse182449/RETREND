@@ -89,7 +89,7 @@ export default function CheckoutPage() {
   const [shippingError, setShippingError] = useState(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedPaymentMethodDisplay, setSelectedPaymentMethodDisplay] =
-    useState("online_payos");
+    useState("online");
   const [availableApiVouchers, setAvailableApiVouchers] = useState([]);
   // const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false); // Not needed if list is inline
   const [voucherCodeInput, setVoucherCodeInput] = useState("");
@@ -245,10 +245,10 @@ export default function CheckoutPage() {
       appliedVoucher?.type === "shipping"
     ) {
       console.log("  --> Free shipping due to voucher.");
-      return 0;
+      return "";
     }
 
-    let determinedBaseFee = 30000; // Default shipping fee if no specific method applies or is found
+    let determinedBaseFee = 0; // Default shipping fee if no specific method applies or is found
 
     if (selectedShippingMethodId && availableShippingMethods.length > 0) {
       const selectedMethod = availableShippingMethods.find(
@@ -331,8 +331,7 @@ export default function CheckoutPage() {
     setSelectedPaymentMethodDisplay(method);
     closePaymentModal();
   };
-  // const openVoucherModal = () => setIsVoucherModalOpen(true); // No longer needed for inline list
-  // const closeVoucherModal = () => setIsVoucherModalOpen(false); // No longer needed
+ 
 
   // --- Voucher Handlers ---
   const handleSelectAndApplyVoucher = (voucherToApply) => {
@@ -421,7 +420,7 @@ export default function CheckoutPage() {
         shippingAddress:
           `${shippingForm.address}, ${shippingForm.ward}, ${shippingForm.district}, ${shippingForm.city}`.trim(),
         methodPayment: selectedPaymentMethodDisplay,
-        voucherId: appliedVoucher ? parseInt(appliedVoucher.id, 10) : 0,
+        voucherId: appliedVoucher ? parseInt(appliedVoucher.id, 10) : "",
         subtotal: currentSubtotal,
       },
       orderItemsRequest: {
@@ -859,9 +858,9 @@ export default function CheckoutPage() {
                             <input
                               type="radio"
                               name="paymentMethodRadioDisplay"
-                              value="online_payos"
+                              value="online"
                               checked={
-                                selectedPaymentMethodDisplay === "online_payos"
+                                selectedPaymentMethodDisplay === "online"
                               }
                               readOnly
                               className="form-radio h-4 w-4 text-blue-600 mr-3 focus:ring-blue-500"

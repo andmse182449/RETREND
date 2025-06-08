@@ -54,18 +54,25 @@ async function handleProductListResponse(response) {
 
 async function handleSingleProductResponse(response) {
   if (!response.ok) {
+    // For a 400 error, response.ok will be FALSE
     let errorMessage = `API Error: ${response.status} ${
       response.statusText || ""
-    }`;
-    let errorStatus = response.status;
+    }`; // Default
+    let errorStatus = response.status; // Will be 400
+    let apiErrorData = null; // To store the parsed JSON like {"message": ..., "errorCode": ...}
     try {
-      const errorText = await response.text();
+      const errorText = await response.text(); // Get the raw text: '{"message": "...", "errorCode": 16}'
       if (response.headers.get("content-type")?.includes("application/json")) {
-        const errorData = JSON.parse(errorText);
+        // This condition should be true if backend sends Content-Type: application/json for errors
+        const errorData = JSON.parse(errorText); // Parses the JSON
+        apiErrorData = errorData; // Store the parsed data
+        // --- THIS PART IS KEY ---
+        // It tries to get 'messages' first, then 'message'. Your API returns 'message'.
         errorMessage =
           errorData.messages ||
           errorData.message ||
           errorText.substring(0, 200);
+        // For your example, errorData.message will be "Bạn đã hết lượt đăng sản phẩm..."
       } else if (errorText) {
         errorMessage = errorText.substring(0, 500);
       }
@@ -74,11 +81,13 @@ async function handleSingleProductResponse(response) {
         "ProductService: Could not parse error response body for single:",
         e
       );
+      // If JSON parsing failed for some reason, errorMessage might remain the default
     }
-    const error = new Error(errorMessage);
-    error.status = errorStatus;
+    const error = new Error(errorMessage); // error.message will be "Bạn đã hết lượt đăng sản phẩm..."
+    error.status = errorStatus; // error.status will be 400
+    error.data = apiErrorData; // error.data will be { message: "...", errorCode: 16 }
     console.error("Product Service API Error (Single):", error);
-    throw error;
+    throw error; // This error, with the specific message, is
   }
   if (response.status === 204) return null;
   const responseData = await response.json();
@@ -479,20 +488,34 @@ export const sellerCreateProduct = async (productDetails) => {
 
   if (!token) {
     console.error("sellerCreateProduct: Authentication token required.");
-    return Promise.reject(new Error("Authentication required to create a product."));
+    return Promise.reject(
+      new Error("Authentication required to create a product.")
+    );
   }
 
   // Validate required fields in productDetails
-  if (!productDetails || !productDetails.username || !productDetails.name || 
-      typeof productDetails.price === 'undefined' || !productDetails.imageUrl) {
-    console.error("sellerCreateProduct: Missing required product details.", productDetails);
-    return Promise.reject(new Error("Username, name, price, and imageUrl are required to create a product."));
+  if (
+    !productDetails ||
+    !productDetails.username ||
+    !productDetails.name ||
+    typeof productDetails.price === "undefined" ||
+    !productDetails.imageUrl
+  ) {
+    console.error(
+      "sellerCreateProduct: Missing required product details.",
+      productDetails
+    );
+    return Promise.reject(
+      new Error(
+        "Username, name, price, and imageUrl are required to create a product."
+      )
+    );
   }
 
   const headers = {
-    'Accept': '*/*', // As per API spec example
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    Accept: "*/*", // As per API spec example
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
   };
 
   // Ensure price is a number
@@ -502,7 +525,10 @@ export const sellerCreateProduct = async (productDetails) => {
   };
 
   try {
-    console.log("productService: Seller creating product with payload:", payload);
+    console.log(
+      "productService: Seller creating product with payload:",
+      payload
+    );
     const response = await fetch(url, {
       method: "POST",
       headers: headers,
@@ -512,12 +538,16 @@ export const sellerCreateProduct = async (productDetails) => {
     // The response for this API is { messages, success, data: productObject }
     // So, handleSingleProductResponse is appropriate here.
     const createdProductData = await handleSingleProductResponse(response);
-    
+
     return transformApiProduct(createdProductData); // Transform the returned product data
   } catch (error) {
     // Error is already logged by handleSingleProductResponse if it's an API error
     // This catch handles network errors or errors from JSON parsing in the handler.
-    console.error("Error in sellerCreateProduct:", error.message, error.status ? `(Status: ${error.status})` : '');
+    console.error(
+      "Error in sellerCreateProduct:",
+      error.message,
+      error.status ? `(Status: ${error.status})` : ""
+    );
     throw error; // Re-throw for the calling component to handle
   }
 };
@@ -529,53 +559,69 @@ export const sellerCreateProduct = async (productDetails) => {
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of transformed product objects.
  */
 export const getProductsByBlindboxName = async (blindboxName) => {
-  if (!blindboxName || typeof blindboxName !== 'string' || blindboxName.trim() === "") {
-    console.error("getProductsByBlindboxName: blindboxName is required and must be a non-empty string.");
+  if (
+    !blindboxName ||
+    typeof blindboxName !== "string" ||
+    blindboxName.trim() === ""
+  ) {
+    console.error(
+      "getProductsByBlindboxName: blindboxName is required and must be a non-empty string."
+    );
     // Return Promise.resolve([]) or throw error based on how you want to handle invalid input
-    return Promise.resolve([]); 
+    return Promise.resolve([]);
   }
 
   // The blindboxName in the URL needs to be URI encoded to handle spaces and special characters.
   const encodedBlindboxName = encodeURIComponent(blindboxName);
   const url = `${API_BASE_URL}/v1.0/product/get-products-by-blindbox-name/${encodedBlindboxName}`;
-  
-  const token = localStorage.getItem('authToken'); // Retrieve token, as shown in your curl
+
+  const token = localStorage.getItem("authToken"); // Retrieve token, as shown in your curl
 
   const headers = {
-    'Accept': '*/*', // As per your API spec
+    Accept: "*/*", // As per your API spec
   };
 
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   } else {
     // If this endpoint strictly requires a token, you might want to throw an error here.
     // Your curl example includes a token, so it's likely protected.
-    console.warn(`productService: No authToken found. Request to get products for blindbox '${blindboxName}' might fail.`);
+    console.warn(
+      `productService: No authToken found. Request to get products for blindbox '${blindboxName}' might fail.`
+    );
     // return Promise.reject(new Error("Authentication required to fetch products by blindbox name.")); // Option
   }
 
   try {
-    console.log(`productService: Fetching products for blindbox '${blindboxName}' with URL: ${url}`);
+    console.log(
+      `productService: Fetching products for blindbox '${blindboxName}' with URL: ${url}`
+    );
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: headers,
     });
 
     // This endpoint returns a list of products wrapped in { messages, success, data: [...] }
     // so handleProductListResponse is appropriate.
-    const apiProductList = await handleProductListResponse(response); 
-    
-    if (!Array.isArray(apiProductList)) {
-        console.error(`productService: Expected an array of products for blindbox '${blindboxName}', received:`, apiProductList);
-        return []; // Return empty if the data part is not an array
-    }
-    
-    return apiProductList.map(transformApiProduct).filter(p => p !== null); // Transform each product and filter out nulls
+    const apiProductList = await handleProductListResponse(response);
 
+    if (!Array.isArray(apiProductList)) {
+      console.error(
+        `productService: Expected an array of products for blindbox '${blindboxName}', received:`,
+        apiProductList
+      );
+      return []; // Return empty if the data part is not an array
+    }
+
+    return apiProductList.map(transformApiProduct).filter((p) => p !== null); // Transform each product and filter out nulls
   } catch (error) {
     // Error is already logged by handleProductListResponse if it's an API error from response.ok check.
     // This catch primarily handles network errors or unexpected errors from handleProductListResponse itself.
-    console.error(`Error in getProductsByBlindboxName for '${blindboxName}':`, error.message, error.status ? `(Status: ${error.status})` : '');
+    console.error(
+      `Error in getProductsByBlindboxName for '${blindboxName}':`,
+      error.message,
+      error.status ? `(Status: ${error.status})` : ""
+    );
     return []; // Return empty array to allow UI to handle gracefully
   }
 };
