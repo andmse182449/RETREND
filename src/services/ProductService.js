@@ -435,14 +435,14 @@ export const adminChangeProductStatus = async (productId, status) => {
  * @param {Array<number>} productIds - An array of product IDs to assign.
  * @returns {Promise<Object>} The API response (structure not fully specified in your example, assuming similar success/data pattern).
  */
-export const assignProductsToBlindbox = async (blindboxId, productIds) => {
+export const assignProductsToBlindbox = async (blindboxName, productIds) => {
   const url = `${API_BASE_URL}/v1.0/product/assign-blindbox`;
   const token = localStorage.getItem("authToken"); // Assuming this requires auth
 
   if (!token)
     return Promise.reject(new Error("Action requires authentication."));
   if (
-    typeof blindboxId === "undefined" ||
+    typeof blindboxName === "undefined" ||
     !Array.isArray(productIds) ||
     productIds.length === 0
   ) {
@@ -458,7 +458,7 @@ export const assignProductsToBlindbox = async (blindboxId, productIds) => {
   };
 
   const body = JSON.stringify({
-    blindboxId: blindboxId,
+    blindboxName: blindboxName,
     productIds: productIds,
   });
 
@@ -474,7 +474,7 @@ export const assignProductsToBlindbox = async (blindboxId, productIds) => {
     // Let's use handleSingleProductResponse if it returns a data object, or handleSimpleSuccessResponse if it's simpler.
     // For now, assuming it might return something like the create/update product.
     // If it's just a success message, handleSimpleSuccessResponse would be better.
-    return handleSingleProductResponse(response); // Adjust if response is simpler
+    return handleSimpleSuccessResponse(response); // Adjust if response is simpler
   } catch (error) {
     console.error("Error in assignProductsToBlindbox:", error.message);
     throw error;
@@ -633,37 +633,120 @@ export const getProductsByBlindboxName = async (blindboxName) => {
   }
 };
 
-/**
- * Fetches the name of the current blindbox.
- * GET /v1.0/product/get-name-blindbox
- * @returns {Promise<string|null>} The blindbox name as a string, or null on error.
- */
-export const getBlindboxName = async () => {
-  const url = `${API_BASE_URL}/v1.0/product/get-name-blindbox`;
-  const token = localStorage.getItem("authToken");
+// /**
+//  * Fetches the name of the current blindbox.
+//  * GET /v1.0/product/get-name-blindbox
+//  * @returns {Promise<string|null>} The blindbox name as a string, or null on error.
+//  */
+// export const getBlindboxName = async () => {
+//   const url = `${API_BASE_URL}/v1.0/product/get-name-blindbox`;
+//   const token = localStorage.getItem("authToken");
 
+//   const headers = {
+//     Accept: "*/*",
+//   };
+//   if (token) {
+//     headers["Authorization"] = `Bearer ${token}`;
+//   } else {
+//     console.warn("getBlindboxName: No authToken found.");
+//   }
+
+//   try {
+//     const response = await fetch(url, { method: "GET", headers });
+//     if (!response.ok) {
+//       let errorText = await response.text();
+//       throw new Error(
+//         `API Error: ${response.status} ${response.statusText} - ${errorText}`
+//       );
+//     }
+//     // The API returns plain text (e.g., "WINTER")
+//     const blindboxName = await response.text();
+//     return blindboxName?.trim() || null;
+//   } catch (error) {
+//     console.error("Error in getBlindboxName:", error.message);
+//     return null;
+//   }
+// };
+/*
+ * Fetches all products available for assigning to a blindbox event.
+ * Requires an authentication token.
+ * @returns {Promise<Array<Object>>} A promise that resolves to an array of transformed product objects.
+ */
+export const getAllProductsForAssignBlindbox = async () => {
+  const url = `${API_BASE_URL}/v1.0/product/get-all-product-for-assign-blindbox`;
+
+  const token = localStorage.getItem('authToken');
   const headers = {
-    Accept: "*/*",
+    'Accept': '*/*',
   };
+
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    headers['Authorization'] = `Bearer ${token}`;
   } else {
-    console.warn("getBlindboxName: No authToken found.");
+    console.warn("productService: No authToken found. Request to fetch assignable products might fail.");
   }
 
   try {
-    const response = await fetch(url, { method: "GET", headers });
-    if (!response.ok) {
-      let errorText = await response.text();
-      throw new Error(
-        `API Error: ${response.status} ${response.statusText} - ${errorText}`
-      );
+    console.log(`productService: Fetching all products available for blindbox assignment from: ${url}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    const apiProductList = await handleProductListResponse(response);
+
+    if (!Array.isArray(apiProductList)) {
+      console.error("productService: Expected an array of assignable products, received:", apiProductList);
+      return [];
     }
-    // The API returns plain text (e.g., "WINTER")
-    const blindboxName = await response.text();
-    return blindboxName?.trim() || null;
+
+    return apiProductList.map(transformApiProduct).filter(p => p !== null);
+
   } catch (error) {
-    console.error("Error in getBlindboxName:", error.message);
-    return null;
+    console.error(`Error in getAllProductsForAssignBlindbox:`, error.message, error.status ? `(Status: ${error.status})` : '');
+    return [];
   }
 };
+
+/**
+ * Fetches a blindbox name from the backend.
+ * Returns a string representing a grouped blindbox name.
+ * @returns {Promise<string>} A promise that resolves to a blindbox name.
+ */
+export const getBlindboxName = async () => {
+  const url = `${API_BASE_URL}/v1.0/product/get-name-blindbox`;
+
+  const token = localStorage.getItem('authToken');
+
+  const headers = {
+    'Accept': '*/*',
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.warn("getBlindboxName: No authToken found. Request may fail if protected.");
+  }
+
+  try {
+    console.log(`productService: Fetching blindbox name with URL: ${url}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`getBlindboxName: API responded with status ${response.status}`, errorText);
+      return ""; // or throw Error if strict error handling is required
+    }
+
+    const blindboxName = await response.text(); // since response is plain string
+    return blindboxName;
+
+  } catch (error) {
+    console.error("getBlindboxName: Network or parsing error", error.message);
+    return "";
+  }
+};
+

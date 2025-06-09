@@ -26,6 +26,9 @@ import {
   adminUpdateProduct,
   adminChangeProductStatus,
   assignProductsToBlindbox,
+  getAllProductsForAssignBlindbox, 
+  getBlindboxName,
+  getProductsByBlindboxName,
   // adminDeleteProduct, // TODO: Implement this in service
 } from "../../services/ProductService"; // Adjust path
 
@@ -301,39 +304,42 @@ function ProductModal({ product, isOpen, onClose, onSave, isLoading }) {
   );
 }
 
-// --- Box Form Modal Component ---
-function BoxModal({
-  box,
-  isOpen,
-  onClose,
-  onSave,
-  availableProducts,
-  isLoading,
-}) {
-  /* ... (Keep BoxModal as is from previous correct version) ... */
+// --- Box Form Modal Component (Refactored) ---
+function BoxModal({ isOpen, onClose, onSave, isLoading }) {
   const [formData, setFormData] = useState({ name: "", productIds: [] });
   const [formError, setFormError] = useState(null);
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
   useEffect(() => {
     if (isOpen) {
-      if (box) {
-        setFormData({ name: box.name || "", productIds: box.productIds || [] });
-      } else {
-        setFormData({ name: "", productIds: [] });
-      }
       setFormError(null);
+      setFormData({ name: "", productIds: [] });
+      setAvailableProducts([]);
+      setLoadingProducts(true);
+      // Lấy tên blindbox và danh sách sản phẩm assignable
+      Promise.all([getBlindboxName(), getAllProductsForAssignBlindbox()])
+        .then(([blindboxName, products]) => {
+          setFormData((prev) => ({ ...prev, name: blindboxName || "" }));
+          setAvailableProducts(products || []);
+        })
+        .finally(() => setLoadingProducts(false));
     }
-  }, [box, isOpen]);
+  }, [isOpen]);
+
   const handleInputChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  const handleProductSelection = (productId) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      productIds: prevData.productIds.includes(productId)
-        ? prevData.productIds.filter((id) => id !== productId)
-        : [...prevData.productIds, productId],
+
+  const handleProductCheckbox = (productId) => {
+    setFormData((prev) => ({
+      ...prev,
+      productIds: prev.productIds.includes(productId)
+        ? prev.productIds.filter((id) => id !== productId)
+        : [...prev.productIds, productId],
     }));
     setFormError(null);
   };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -344,15 +350,11 @@ function BoxModal({
       setFormError("Box must contain at least one product.");
       return;
     }
-    onSave({ ...box, ...formData });
+    onSave({ ...formData });
   };
+
   if (!isOpen) return null;
-  const selectedProductObjects = formData.productIds
-    .map((id) => availableProducts.find((p) => p.id === id))
-    .filter(Boolean);
-  const unselectedProductObjects = availableProducts.filter(
-    (p) => !formData.productIds.includes(p.id)
-  );
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
       <motion.div
@@ -363,33 +365,19 @@ function BoxModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-800">
-            {box ? "Edit Mystery Box" : "Create New Mystery Box"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <h2 className="text-xl font-bold text-gray-800">Create New Mystery Box</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XCircle size={24} />
           </button>
         </div>
         {formError && (
-          <div
-            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded mb-4 text-sm"
-            role="alert"
-          >
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded mb-4 text-sm" role="alert">
             {formError}
           </div>
         )}
-        <form
-          onSubmit={handleSubmit}
-          className="flex-grow flex flex-col overflow-hidden"
-        >
+        <form onSubmit={handleSubmit} className="flex-grow flex flex-col overflow-hidden">
           <div className="mb-4">
-            <label
-              htmlFor="boxNameModal"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            <label htmlFor="boxNameModal" className="block text-sm font-medium text-gray-700 mb-1">
               Box Name
             </label>
             <input
@@ -402,64 +390,26 @@ function BoxModal({
               required
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 flex-grow overflow-hidden">
-            <div className="flex flex-col">
-              <h3 className="text-sm font-semibold mb-2 text-gray-700">
-                Products in Box ({selectedProductObjects.length})
-              </h3>
-              <div className="border border-gray-300 rounded-md p-2 space-y-1.5 overflow-y-auto flex-grow custom-scrollbar-thin">
-                {selectedProductObjects.length === 0 ? (
-                  <p className="text-xs text-gray-500 italic p-1">
-                    No products selected.
-                  </p>
-                ) : (
-                  selectedProductObjects.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between bg-blue-50 rounded p-1.5 text-xs"
-                    >
-                      <span className="text-gray-800 flex items-center gap-1.5">
-                        <FaCube size={12} />
-                        {p.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleProductSelection(p.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <XCircle size={14} />
-                      </button>
-                    </div>
-                  ))
-                )}
+          <div className="mb-4 flex-grow overflow-y-auto">
+            <h3 className="text-sm font-semibold mb-2 text-gray-700">
+              Select Products for Box
+            </h3>
+            {loadingProducts ? (
+              <div className="text-gray-500 text-sm">Loading products...</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {availableProducts.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 bg-gray-50 rounded p-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.productIds.includes(p.id)}
+                      onChange={() => handleProductCheckbox(p.id)}
+                    />
+                    <span className="text-gray-800">{p.name}</span>
+                  </label>
+                ))}
               </div>
-            </div>
-            <div className="flex flex-col">
-              <h3 className="text-sm font-semibold mb-2 text-gray-700">
-                Available Products to Add ({unselectedProductObjects.length})
-              </h3>
-              <div className="border border-gray-300 rounded-md p-2 space-y-1.5 overflow-y-auto flex-grow custom-scrollbar-thin">
-                {unselectedProductObjects.length === 0 ? (
-                  <p className="text-xs text-gray-500 italic p-1">
-                    All products added or none available.
-                  </p>
-                ) : (
-                  unselectedProductObjects.map((p) => (
-                    <div
-                      key={p.id}
-                      className="flex items-center justify-between hover:bg-gray-50 rounded p-1.5 cursor-pointer text-xs"
-                      onClick={() => handleProductSelection(p.id)}
-                    >
-                      <span className="text-gray-800 flex items-center gap-1.5">
-                        <FaCube size={12} />
-                        {p.name}
-                      </span>
-                      <PlusCircle size={14} className="text-green-500" />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            )}
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t mt-auto">
             <button
@@ -479,13 +429,7 @@ function BoxModal({
               ) : (
                 <Save size={16} />
               )}
-              {isLoading
-                ? box
-                  ? "Saving..."
-                  : "Creating..."
-                : box
-                ? "Save Box"
-                : "Create Box"}
+              {isLoading ? "Creating..." : "Create Box"}
             </button>
           </div>
         </form>
@@ -514,23 +458,26 @@ function BoxModal({
   );
 }
 
-// --- Main AdminProducts Component ---
+// --- Main AdminProducts Component (Mystery Box UI Refactor) ---
 export default function AdminProducts() {
   const [allProducts, setAllProducts] = useState([]);
-  const [mysteryBoxes, setMysteryBoxes] = useState([]); // Initialize as empty array
-
+  const [mysteryBoxes, setMysteryBoxes] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
-  const [isLoadingBoxes, setIsLoadingBoxes] = useState(true); // Set to true
+  const [isLoadingBoxes, setIsLoadingBoxes] = useState(true);
   const [error, setError] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("products");
-
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [currentProductForModal, setCurrentProductForModal] = useState(null);
   const [isBoxModalOpen, setIsBoxModalOpen] = useState(false);
   const [currentBoxForModal, setCurrentBoxForModal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedBoxName, setSelectedBoxName] = useState(null);
+  const [productsInBox, setProductsInBox] = useState([]);
+  const [loadingProductsInBox, setLoadingProductsInBox] = useState(false);
+  const [latestBlindboxName, setLatestBlindboxName] = useState("");
+  const [productsOfLatestBox, setProductsOfLatestBox] = useState([]);
+  const [loadingLatestBox, setLoadingLatestBox] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     setIsLoadingProducts(true);
@@ -551,71 +498,67 @@ export default function AdminProducts() {
     }
   }, []);
 
-  // Separate useEffect for fetching mystery boxes (placeholder)
+  // Fetch boxes (mock or real API if available)
   useEffect(() => {
     const fetchMysteryBoxes = async () => {
       setIsLoadingBoxes(true);
-      // setError(null); // Reset error specific to boxes if desired
       try {
-        // TODO: Replace with your actual API call to fetch mystery boxes
-        // const boxesData = await mysteryBoxApiService.getAllMysteryBoxes();
-        // setMysteryBoxes(boxesData || []);
-
-        // Using mock data for now as there's no API service for boxes yet
-        const mockBoxes = [
-          {
-            id: 101,
-            name: "Small Vintage Box",
-            productIds:
-              allProducts.length > 1
-                ? [allProducts[0]?.id, allProducts[1]?.id].filter(Boolean)
-                : [],
-          },
-          {
-            id: 102,
-            name: "Medium Premium Box",
-            productIds:
-              allProducts.length > 4
-                ? [
-                    allProducts[2]?.id,
-                    allProducts[3]?.id,
-                    allProducts[4]?.id,
-                  ].filter(Boolean)
-                : [],
-          },
-        ];
-        setMysteryBoxes(
-          mockBoxes.map((box) => ({
-            ...box,
-            productIds: box.productIds.filter((id) =>
-              allProducts.find((p) => p.id === id)
-            ),
-          }))
-        ); // Ensure productIds exist
-      } catch (err) {
-        console.error("AdminProducts: Failed to load mystery boxes", err);
-        setError((prevError) =>
-          prevError
-            ? `${prevError}\nFailed to load mystery boxes.`
-            : "Failed to load mystery boxes."
-        );
+      // TODO: Replace with real API if available
+      // XÓA mock data bên dưới:
+      // setMysteryBoxes([
+      //   { id: 1, name: "Small Vintage Box" },
+      //   { id: 2, name: "Medium Premium Box" },
+      // ]);
+      // Nếu có API thực tế, gọi ở đây, ví dụ:
+      // const boxes = await getAllBlindboxes();
+      // setMysteryBoxes(boxes);
+      setMysteryBoxes([]); // Nếu chưa có API, để rỗng
+    } catch (err) {
         setMysteryBoxes([]);
       } finally {
         setIsLoadingBoxes(false);
       }
     };
+    fetchMysteryBoxes();
+  }, []);
 
-    if (allProducts.length > 0 || activeTab === "boxes") {
-      // Fetch boxes if tab is active or products are loaded (for BoxModal)
-      fetchMysteryBoxes();
-    } else if (activeTab !== "boxes") {
-      setIsLoadingBoxes(false); // If not fetching boxes, don't show loading
-    }
-  }, [fetchProducts, allProducts, activeTab]); // Depend on fetchProducts to ensure it's defined, and allProducts for mock data population
+  // Khi click vào 1 box, lấy danh sách sản phẩm
+  const handleSelectBox = async (boxName) => {
+    setSelectedBoxName(boxName);
+    setLoadingProductsInBox(true);
+    const products = await getProductsByBlindboxName(boxName);
+    setProductsInBox(products);
+    setLoadingProductsInBox(false);
+  };
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  // Khi vào tab "boxes", tự động lấy tên blindbox mới nhất và danh sách sản phẩm của nó
+  useEffect(() => {
+    if (activeTab === "boxes") {
+      const fetchLatestBoxAndProducts = async () => {
+        setLoadingLatestBox(true);
+        try {
+          const blindboxName = await getBlindboxName();
+          setLatestBlindboxName(blindboxName || "");
+          if (blindboxName) {
+            const products = await getProductsByBlindboxName(blindboxName);
+            setProductsOfLatestBox(products);
+          } else {
+            setProductsOfLatestBox([]);
+          }
+        } catch (err) {
+          setLatestBlindboxName("");
+          setProductsOfLatestBox([]);
+        } finally {
+          setLoadingLatestBox(false);
+        }
+      };
+      fetchLatestBoxAndProducts();
+    }
+  }, [activeTab]);
 
   const handleAddProductClick = () => {
     setCurrentProductForModal(null);
@@ -702,67 +645,27 @@ export default function AdminProducts() {
     }
   };
 
+  // Tạo box mới
+
+
   const handleCreateBoxClick = () => {
-    setCurrentBoxForModal(null);
-    setIsBoxModalOpen(true);
-  };
-  const handleEditBoxClick = (box) => {
-    setCurrentBoxForModal(box);
     setIsBoxModalOpen(true);
   };
 
   const handleSaveBox = async (boxFormData) => {
-    setIsSubmitting(true);
-    try {
-      if (boxFormData.id) {
-        // Editing
-        // TODO: API call for updating box name AND product assignments
-        // For now, let's assume assignProductsToBlindbox updates the products for an existing box ID
-        await assignProductsToBlindbox(boxFormData.id, boxFormData.productIds);
-        setMysteryBoxes((prev) =>
-          prev.map((b) =>
-            b.id === boxFormData.id
-              ? {
-                  ...b,
-                  blindboxId: boxFormData.name,
-                  productIds: boxFormData.productIds,
-                }
-              : b
-          )
-        ); // Optimistic UI update for name
-        alert("Mystery Box products updated.");
-      } else {
-        // Creating
-        // This typically requires 2 steps: 1. Create box with name -> get ID. 2. Assign products.
-        // Mocking it for now. Assume assignProductsToBlindbox can create if ID is new (not standard) OR you have a createBox API.
-        const newBoxId = `box-${Date.now()}`; // MOCK ID
-        await assignProductsToBlindbox(newBoxId, boxFormData.productIds); // This API might not create a box, just assign
-        setMysteryBoxes((prev) => [
-          ...prev,
-          {
-            id: newBoxId,
-            name: boxFormData.name,
-            productIds: boxFormData.productIds,
-          },
-        ]);
-        alert("New Mystery Box created and products assigned (mock ID).");
-      }
-      setIsBoxModalOpen(false);
-      setCurrentBoxForModal(null);
-    } catch (err) {
-      alert(`Error saving Mystery Box: ${err.message}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteBox = (boxId) => {
-    /* ... (keep placeholder delete) ... */
-    if (window.confirm("Are you sure you want to delete this mystery box?")) {
-      alert(`Mock: Box ${boxId} deleted. Implement API call.`);
-      setMysteryBoxes((prev) => prev.filter((b) => b.id !== boxId));
-    }
-  };
+  setIsSubmitting(true);
+  try {
+    // Gọi API assign với blindboxName (không dùng id)
+    await assignProductsToBlindbox(boxFormData.name, boxFormData.productIds);
+    alert("New Mystery Box created and products assigned.");
+    setIsBoxModalOpen(false);
+    // Có thể gọi lại fetchMysteryBoxes() nếu muốn cập nhật danh sách box
+  } catch (err) {
+    alert(`Error saving Mystery Box: ${err.message}`);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const filteredProducts = useMemo(
     () =>
@@ -945,116 +848,37 @@ export default function AdminProducts() {
     </div>
   );
   const renderMysteryBoxManagement = () => (
-    /* ... (JSX with box table, ensure it uses `filteredBoxes` and `allProducts` for product names) ... */ <div className="mt-6 bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200">
-      <div className="p-5 md:p-6 border-b border-gray-200">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="relative flex-grow w-full sm:max-w-xs md:max-w-sm">
-            <Search
-              size={18}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              placeholder="Search boxes by name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="admin-input pl-10"
-            />
-          </div>
+    /* ... (JSX with box table, ensure it uses `filteredBoxes` and `allProducts` for product names) ... */ <div className="mt-6 bg-white rounded-lg shadow-xl overflow-hidden border border-gray-200 flex">
+      <div className="w-1/2 border-r border-gray-200 p-6">
+        <h3 className="text-lg font-semibold mb-3 text-gray-700">Box Name</h3>
+        <div className="mb-6 text-blue-700 font-bold text-xl">
+          {loadingLatestBox
+            ? "Loading..."
+            : latestBlindboxName || <span className="text-gray-400">No blindbox found</span>}
+        </div>
+        <div className="mb-4">
           <button
             onClick={handleCreateBoxClick}
-            className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 text-sm shadow-md transition-colors"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 text-sm shadow-md transition-colors"
           >
             <FaBoxOpen size={18} /> Create New Box
           </button>
         </div>
+        
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px]">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="admin-th">Box Name</th>
-              <th className="admin-th">Products ({`Count`})</th>
-              <th className="admin-th text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {isLoadingBoxes ? (
-              <tr>
-                <td colSpan="3" className="text-center py-10 text-gray-500">
-                  Loading boxes...
-                </td>
-              </tr>
-            ) : error &&
-              filteredBoxes.length === 0 &&
-              mysteryBoxes.length === 0 ? (
-              <tr>
-                <td colSpan="3" className="text-center py-10 text-red-500">
-                  {error.includes("boxes") ? error : "Error loading boxes."}
-                </td>
-              </tr>
-            ) : filteredBoxes.length === 0 ? (
-              <tr>
-                <td colSpan="3" className="text-center py-10 text-gray-500">
-                  No mystery boxes found.
-                </td>
-              </tr>
-            ) : (
-              filteredBoxes.map((box) => {
-                const includedProducts = box.productIds
-                  .map((id) => allProducts.find((p) => p.id === id))
-                  .filter(Boolean);
-                return (
-                  <tr
-                    key={box.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="admin-td">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {box.name}
-                      </div>
-                      <div className="text-xs text-gray-500">ID: {box.id}</div>
-                    </td>
-                    <td className="admin-td">
-                      <ul className="list-disc list-inside text-xs text-gray-600 space-y-0.5 max-h-20 overflow-y-auto custom-scrollbar-thin pr-1">
-                        {includedProducts.length > 0 ? (
-                          includedProducts.map((p) => (
-                            <li key={p.id} className="truncate" title={p.name}>
-                              {p.name}
-                            </li>
-                          ))
-                        ) : (
-                          <li className="italic">No products assigned.</li>
-                        )}
-                      </ul>
-                    </td>
-                    <td className="admin-td text-center">
-                      <div className="flex items-center justify-center space-x-1 md:space-x-2">
-                        <button
-                          onClick={() => handleEditBoxClick(box)}
-                          className="admin-action-button text-blue-600 hover:bg-blue-100"
-                          title="Edit Box"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteBox(box.id)}
-                          className="admin-action-button text-red-500 hover:bg-red-100"
-                          title="Delete Box"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-      <div className="px-6 py-3 border-t border-gray-200 text-xs text-gray-500">
-        Displaying {filteredBoxes.length} of {mysteryBoxes.length} total boxes.
+      <div className="w-1/2 p-6">
+        <h3 className="text-lg font-semibold mb-3 text-gray-700">Product in Box</h3>
+        {loadingLatestBox ? (
+          <div className="text-gray-500">Loading...</div>
+        ) : productsOfLatestBox.length === 0 ? (
+          <div className="text-gray-400 italic">No products in this box.</div>
+        ) : (
+          <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+            {productsOfLatestBox.map((p) => (
+              <li key={p.id}>{p.name}</li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -1103,6 +927,16 @@ export default function AdminProducts() {
       {activeTab === "products" && renderProductManagement()}
       {activeTab === "boxes" && renderMysteryBoxManagement()}
       <AnimatePresence>
+        {isBoxModalOpen && (
+          <BoxModal
+            isOpen={isBoxModalOpen}
+            onClose={() => setIsBoxModalOpen(false)}
+            onSave={handleSaveBox}
+            isLoading={isSubmitting}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {isProductModalOpen && (
           <ProductModal
             product={currentProductForModal}
@@ -1112,21 +946,6 @@ export default function AdminProducts() {
               setCurrentProductForModal(null);
             }}
             onSave={handleSaveProduct}
-            isLoading={isSubmitting}
-          />
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {isBoxModalOpen && (
-          <BoxModal
-            box={currentBoxForModal}
-            isOpen={isBoxModalOpen}
-            onClose={() => {
-              setIsBoxModalOpen(false);
-              setCurrentBoxForModal(null);
-            }}
-            onSave={handleSaveBox}
-            availableProducts={allProducts}
             isLoading={isSubmitting}
           />
         )}

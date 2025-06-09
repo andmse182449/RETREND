@@ -173,62 +173,37 @@ class ShippingApiService {
         new Error("Valid shippingMethodId is required for update.")
       );
     }
-    // If your API expects ID in path:
     const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/${shippingMethodId}`;
-    // If your API expects ID in body and endpoint is just /shipping:
-    // const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}`;
-
     const token = this._getAuthToken();
     if (!token) {
       return Promise.reject(
         new Error("Authentication required to update shipping method.")
       );
     }
-
     const headers = {
       Accept: "*/*",
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     };
-
-    // Prepare payload, ensuring fee is a number
-    const payload = { ...updateData };
-    if (typeof payload.fee !== "undefined") {
-      payload.fee = parseFloat(payload.fee) || 0;
-    }
-    // If ID needs to be in body (and not in path):
-    // payload.shippingMethodId = shippingMethodId;
-
-    console.log(
-      `ShippingApiService: Calling PUT ${url} with payload:`,
-      payload
-    );
+    const payload = {
+      ...updateData,
+      fee: typeof updateData.fee !== "undefined" ? parseFloat(updateData.fee) : 0,
+    };
     try {
       const response = await fetch(url, {
         method: "PUT",
-        headers: headers,
+        headers,
         body: JSON.stringify(payload),
       });
       const result = await this._handleApiResponse(response);
-      // Assuming API returns the updated object in result.data
-      if (
-        result &&
-        result.success &&
-        result.data &&
-        typeof result.data.shippingMethodId !== "undefined"
-      ) {
+      if (result && result.success && result.data) {
         return result.data;
       } else if (result && result.success === false) {
         throw new Error(result.message || "Failed to update shipping method.");
       }
-      throw new Error(
-        "Unexpected data structure from update shipping method API."
-      );
+      throw new Error("Unexpected data structure from update shipping method API.");
     } catch (error) {
-      console.error(
-        `Error updating shipping method ${shippingMethodId}:`,
-        error
-      );
+      console.error(`Error updating shipping method ${shippingMethodId}:`, error);
       throw error;
     }
   }

@@ -1,5 +1,6 @@
 // src/services/orderService.js
-import { API_BASE_URL } from "./config"; // Adjust path to your config file
+import { API_BASE_URL } from "./config";
+
 
 /**
  * Handles common API response logic.
@@ -236,5 +237,81 @@ export const buyBlindbox = async ({
       error.status ? `(Status: ${error.status})` : ""
     );
     throw error;
+  }
+};
+//  * Fetches all orders (admin view).
+//  * GET /v1.0/orders
+//  * @returns {Promise<Array<Object>>} A promise that resolves to an array of transformed order objects.
+//  */
+export const getAllOrders = async () => {
+  const url = `${API_BASE_URL}/v1.0/orders`;
+  const token = localStorage.getItem('authToken');
+  const headers = {
+    'Accept': '*/*',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    console.log(`OrderService: Fetching all orders from URL: ${url}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    const apiOrderList = await handleApiResponse(response);
+
+    if (!Array.isArray(apiOrderList)) {
+      console.error("OrderService: Expected an array of orders from API, received:", apiOrderList);
+      return [];
+    }
+
+    return apiOrderList.map(transformApiOrder).filter(order => order !== null);
+  } catch (error) {
+    console.error(`Error in getAllOrders:`, error.message, error.status ? `(Status: ${error.status})` : '');
+    return [];
+  }
+};
+
+/**
+ * Fetches all orders by status (admin view).
+ * GET /v1.0/orders/{status}
+ * @param {string} status - The status to filter orders by.
+ * @returns {Promise<Array<Object>>} A promise that resolves to an array of transformed order objects.
+ */
+export const getAllOrdersByStatus = async (status) => {
+  if (!status || typeof status !== 'string' || status.trim() === "") {
+    console.error("getAllOrdersByStatus: status is required and must be a non-empty string.");
+    return Promise.resolve([]);
+  }
+
+  const url = `${API_BASE_URL}/v1.0/orders/${encodeURIComponent(status)}`;
+  const token = localStorage.getItem('authToken');
+  const headers = {
+    'Accept': '*/*',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    console.log(`OrderService: Fetching all orders by status '${status}' from URL: ${url}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: headers,
+    });
+
+    const apiOrderList = await handleApiResponse(response);
+
+    if (!Array.isArray(apiOrderList)) {
+      console.error("OrderService: Expected an array of orders from API, received:", apiOrderList);
+      return [];
+    }
+
+    return apiOrderList.map(transformApiOrder).filter(order => order !== null);
+  } catch (error) {
+    console.error(`Error in getAllOrdersByStatus for status '${status}':`, error.message, error.status ? `(Status: ${error.status})` : '');
+    return [];
   }
 };
