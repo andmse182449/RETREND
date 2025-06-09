@@ -44,16 +44,16 @@ export default function PaymentSuccess() {
           <div>
             <h3 className="text-lg font-medium text-gray-800">Chi Tiết Đơn Hàng:</h3>
             <ul className="mt-2 text-sm text-gray-600 space-y-1">
-              <li><strong>Mã đơn hàng:</strong> {orderNumber}</li>
-              <li><strong>Mã giao dịch:</strong> {transactionId}</li>
+              {/* <li><strong>Mã đơn hàng:</strong> {orderNumber}</li>
+              <li><strong>Mã giao dịch:</strong> {transactionId}</li> */}
               <li><strong>Ngày thanh toán:</strong> {purchaseDate}</li>
               <li><strong>Phương thức thanh toán:</strong> {paymentMethod}</li>
-              <li><strong>Tổng tiền:</strong> <span className="font-semibold text-green-600">{amountPaid}</span></li>
+              {/* <li><strong>Tổng tiền:</strong> <span className="font-semibold text-green-600">{amountPaid}</span></li> */}
             </ul>
           </div>
 
           {/* Optional: Itemized list - if you have this data readily available */}
-          {itemsPurchased.length > 0 && (
+          {/* {itemsPurchased.length > 0 && (
             <div>
               <h3 className="text-lg font-medium text-gray-800">Sản phẩm đã mua:</h3>
               <ul className="mt-2 text-sm text-gray-600 space-y-1 list-disc list-inside pl-1">
@@ -64,26 +64,26 @@ export default function PaymentSuccess() {
                 ))}
               </ul>
             </div>
-          )}
+          )} */}
 
-          <div>
+          {/* <div>
             <p className="text-sm text-gray-600">
               Một email xác nhận cùng với chi tiết đơn hàng đã được gửi đến địa chỉ email của bạn.
               Chúng tôi sẽ xử lý và giao hàng cho bạn trong thời gian sớm nhất.
             </p>
-          </div>
+          </div> */}
         </div>
 
         <div className="mt-8 space-y-3">
           <Link
-            to="/don-hang-cua-toi" // Link to user's order history page
+            to="/profile" // Link to user's order history page
             className="w-full flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
           >
             <FaFileInvoiceDollar className="mr-2 -ml-1 h-5 w-5" />
             Xem Lịch Sử Đơn Hàng
           </Link>
           <Link
-            to="/" // Link to homepage
+            to="/products" // Link to homepage
             className="w-full flex items-center justify-center px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
             <FaShoppingCart className="mr-2 -ml-1 h-5 w-5" />

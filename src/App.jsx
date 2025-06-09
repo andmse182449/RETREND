@@ -86,6 +86,7 @@ function App() {
         </Routes>
       </CartProvider>
     </Router>
+    
   );
 }
 

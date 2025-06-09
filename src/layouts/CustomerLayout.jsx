@@ -1,54 +1,46 @@
-// src/layouts/CustomerLayout.js
 import React, { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  FaTimes, // Kept for cart panel
-  FaTrash, // Kept for cart items
+  FaTimes,
+  FaTrash,
   FaMapMarkerAlt,
   FaPhone,
   FaEnvelope,
-  FaShoppingCart as FaShoppingCartIcon, // Alias for cart panel title
-} from "react-icons/fa"; // Removed icons now handled by CustomerHeader
+  FaShoppingCart as FaShoppingCartIcon,
+  FaSpinner,
+} from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
-
-// Import the new Header component
-import CustomerHeader from "../components/CustomerHeader"; // Adjust path if needed
+import { toast } from "react-toastify";
+import CustomerHeader from "../components/CustomerHeader";
 import VoucherModal from "../components/VoucherModal";
 import { useCart } from "../context/CartContext";
-import voucherApiService from "../services/VoucherApiService"; // Ensure this path is correct, e.g., ../services/
+import voucherApiService from "../services/VoucherApiService";
 
 export default function CustomerLayout() {
-  // Determine if using local state or context state for cart panel
-  // For this example, I'm reverting to the local state version you provided,
-  // as that's the version you asked to modify.
-  // If you want to use the context version for cart panel, you'd destructure
-  // isCartPanelOpen, openCartPanel, closeCartPanel from useCart().
   const {
     cartItems,
-    totalItemsCount,
     subtotalOfAllItems,
     formatPrice,
     removeItem,
     totalCartItemCount,
+    isCartPanelOpen,
     openCartPanel,
+    closeCartPanel,
   } = useCart();
-
-  // Using local state for cart open/close as per your provided "before" code
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const openCart = () => setIsCartOpen(true);
-  const closeCart = () => setIsCartOpen(false);
 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
   const [apiVouchers, setApiVouchers] = useState([]);
   const [isLoadingVouchers, setIsLoadingVouchers] = useState(false);
   const [voucherError, setVoucherError] = useState(null);
+  const [isRemovingItem, setIsRemovingItem] = useState(null);
 
-  // Voucher fetching logic (remains the same)
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const HEADER_OFFSET_CLASS = "pt-16";
+
   useEffect(() => {
     const fetchUserVouchers = async () => {
       const token = localStorage.getItem("authToken");
@@ -88,33 +80,51 @@ export default function CustomerLayout() {
       }
     };
     fetchUserVouchers();
-  }, [location.pathname, formatPrice]);
+  }, [formatPrice]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (searchTerm.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
-      setSearchTerm(""); // Clear search term after submit
-      setIsSearchOpen(false); // Close search dropdown after submit
+      setSearchTerm("");
+      setIsSearchOpen(false);
     }
   };
 
-  // Effect to close modals on navigation
   useEffect(() => {
-    setIsCartOpen(false); // Or closeCartPanel() if using context
+    closeCartPanel();
     setIsSearchOpen(false);
     setIsVoucherModalOpen(false);
-  }, [location]); // location.pathname would be more precise if `location` object changes too often
+  }, [location, closeCartPanel]);
 
-  const toggleSearch = () => setIsSearchOpen((prev) => !prev); // Use functional update for toggles
-
-  // Voucher Modal handlers
+  const toggleSearch = () => setIsSearchOpen((prev) => !prev);
   const openVoucherModalFromLayout = () => setIsVoucherModalOpen(true);
   const closeVoucherModalFromLayout = () => setIsVoucherModalOpen(false);
 
+  const handleRemoveItemFromPanel = async (item) => {
+    if (!item || typeof item.id === "undefined") {
+      toast.error("Sản phẩm không hợp lệ để xóa.");
+      return;
+    }
+
+    setIsRemovingItem(item.id);
+    try {
+      await removeItem(item.id);
+    } catch (error) {
+      console.error(
+        "CustomerLayout: Error from removeItem context action:",
+        error
+      );
+      toast.error(error.message || "Lỗi khi xóa sản phẩm khỏi giỏ.");
+    } finally {
+      setIsRemovingItem(null);
+    }
+  };
+
   return (
-    <div className="w-full min-h-screen flex flex-col bg-gray-50 text-gray-800">
-      {/* --- Use the new CustomerHeader component --- */}
+    <div
+      className={`w-full min-h-screen flex flex-col bg-gray-50 text-gray-800`}
+    >
       <CustomerHeader
         isSearchOpen={isSearchOpen}
         toggleSearch={toggleSearch}
@@ -122,170 +132,192 @@ export default function CustomerLayout() {
         setSearchTerm={setSearchTerm}
         handleSearchSubmit={handleSearchSubmit}
         totalItemsCount={totalCartItemCount}
-        onOpenCart={openCart} // Pass the correct function to open the cart
-        // If using context for cart panel, this would be openCartPanel
+        onOpenCart={openCartPanel}
       />
 
-      {/* --- Cart Overlay & Sliding Panel --- */}
       <AnimatePresence>
-        {isCartOpen && ( // Or isCartPanelOpen if using context
+        {isCartPanelOpen && (
           <motion.div
+            key="cart-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/50"
-            onClick={closeCart}
+            className="fixed inset-0 bg-black/60 z-40"
+            onClick={closeCartPanel}
             aria-hidden="true"
-          /> // Or closeCartPanel
+          />
         )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {isCartOpen && ( // Or isCartPanelOpen
+        {isCartPanelOpen && (
           <motion.div
+            key="cart-panel"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed inset-y-0 right-0 w-full max-w-sm bg-white shadow-xl z-50 flex flex-col overflow-hidden"
+            className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col"
           >
-            <div className="h-full flex flex-col">
-              <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
-                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                  {" "}
-                  <FaShoppingCartIcon size={20} /> Giỏ hàng (
-                  {totalCartItemCount})
+            <div className={`h-full flex flex-col`}>
+              <div className="p-5 md:p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white z-10">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-800 flex items-center gap-2.5">
+                  <FaShoppingCartIcon size={20} className="text-gray-700" /> Giỏ
+                  hàng ({totalCartItemCount})
                 </h2>
                 <button
-                  onClick={closeCart}
-                  className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100 transition-colors"
+                  onClick={closeCartPanel}
+                  className="text-gray-400 hover:text-red-500 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
                   aria-label="Close cart"
                 >
-                  {" "}
-                  <FaTimes size={20} />{" "}
-                </button>{" "}
-                {/* Or closeCartPanel */}
+                  <FaTimes size={18} />
+                </button>
               </div>
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 no-scrollbar">
+
+              <div className="flex-1 overflow-y-auto px-5 md:px-6 py-4 space-y-5 no-scrollbar">
                 {cartItems.length === 0 ? (
-                  <p className="text-gray-500 text-center py-10">
-                    Your cart is empty
-                  </p>
+                  <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 pt-10">
+                    <FaShoppingCartIcon size={48} className="mb-4 opacity-50" />
+                    <p className="text-lg font-medium">
+                      Giỏ hàng của bạn đang trống
+                    </p>
+                    <p className="text-sm mt-1">
+                      Hãy thêm sản phẩm vào giỏ nhé!
+                    </p>
+                    <button
+                      onClick={() => {
+                        navigate("/products");
+                        closeCartPanel();
+                      }}
+                      className="mt-6 bg-blue-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-blue-700 transition-colors"
+                    >
+                      Tiếp tục mua sắm
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <div className="space-y-4">
                       {cartItems.map((item) => (
                         <div
                           key={item.id}
-                          className="flex border-b border-gray-200 pb-4 last:border-b-0 last:pb-0"
+                          className="flex items-start gap-4 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0"
                         >
-                          <div className="w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
+                          <Link
+                            to={`/products/${item.id}`}
+                            onClick={closeCartPanel}
+                            className="shrink-0"
+                          >
                             <img
                               src={
-                                item.image || "https://via.placeholder.com/80"
+                                item.image ||
+                                "https://via.placeholder.com/80x80?text=No+Img"
                               }
-                              alt={item.name}
-                              className="w-full h-full object-cover"
+                              alt={item.name || "Product Image"}
+                              className="w-20 h-20 object-cover rounded-md border border-gray-200"
                             />
+                          </Link>
+                          <div className="flex-1 min-w-0">
+                            <Link
+                              to={`/products/${item.id}`}
+                              onClick={closeCartPanel}
+                              className="hover:text-blue-600 transition-colors"
+                            >
+                              <h4 className="font-semibold text-gray-800 text-sm leading-tight truncate pr-8">
+                                {item.name || "Sản phẩm không tên"}
+                              </h4>
+                            </Link>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              Số lượng: {item.quantity || 1}
+                            </p>
                           </div>
-                          <div className="ml-4 flex-grow flex flex-col justify-between">
-                            <div>
-                              {" "}
-                              <h4 className="font-semibold text-gray-800 text-base mb-1">
-                                {item.name}
-                              </h4>{" "}
-                            </div>
-                            <div className="flex items-center justify-between mt-2">
-                              <div className="text-amber-600 font-bold text-lg flex-shrink-0">
-                                {" "}
-                                {formatPrice(item.price)}{" "}
-                              </div>
-                              <div className="flex items-center space-x-3 flex-shrink-0 text-sm text-gray-800">
-                                <button
-                                  onClick={() => removeItem(item.id)}
-                                  className="text-red-600 hover:text-red-800 transition-colors p-1 rounded-md hover:bg-red-50/20"
-                                  aria-label={`Remove ${item.name} from cart`}
-                                >
-                                  {" "}
-                                  <FaTrash size={16} />{" "}
-                                </button>
-                              </div>
-                            </div>
+                          <div className="flex flex-col items-end justify-between h-full shrink-0 ml-2">
+                            <p className="text-amber-600 font-bold text-sm md:text-base">
+                              {formatPrice(item.price)}
+                            </p>
+                            <button
+                              onClick={() => handleRemoveItemFromPanel(item)}
+                              disabled={isRemovingItem === item.id}
+                              className="text-gray-400 hover:text-red-500 transition-colors text-xs flex items-center mt-auto disabled:opacity-50"
+                              aria-label={`Remove ${
+                                item.name || "item"
+                              } from cart`}
+                            >
+                              {isRemovingItem === item.id ? (
+                                <FaSpinner className="animate-spin w-3.5 h-3.5" />
+                              ) : (
+                                <FaTrash size={12} className="mr-1" />
+                              )}
+                              {isRemovingItem !== item.id && "Xóa"}
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                     {isLoadingVouchers ? (
-                      <p className="text-gray-500 text-center py-2">
-                        Đang tải mã ưu đãi...
+                      <p className="text-center text-xs text-gray-400 py-2">
+                        Đang tải ưu đãi...
                       </p>
                     ) : voucherError ? (
-                      <p className="text-red-500 text-sm text-center py-2">
-                        Lỗi: {voucherError}
+                      <p className="text-center text-xs text-red-400 py-2">
+                        Lỗi tải ưu đãi: {voucherError}
                       </p>
                     ) : apiVouchers.length > 0 ? (
                       <div className="pt-4 border-t border-gray-200 text-center">
-                        <h3 className="font-semibold text-gray-800 mb-4">
-                          MÃ ƯU ĐÃI DÀNH CHO BẠN
+                        <h3 className="font-medium text-gray-700 text-sm mb-2">
+                          ƯU ĐÃI CHO BẠN
                         </h3>
                         <button
                           onClick={openVoucherModalFromLayout}
-                          className="text-blue-600 hover:underline font-semibold text-sm"
+                          className="text-blue-600 hover:text-blue-700 text-xs font-semibold hover:underline"
                         >
-                          {" "}
-                          Xem tất cả mã ưu đãi ({apiVouchers.length}){" "}
+                          Xem tất cả ({apiVouchers.length})
                         </button>
                       </div>
                     ) : (
                       !isLoadingVouchers &&
                       !voucherError && (
-                        <p className="text-gray-500 text-center py-2 text-sm">
-                          Không có mã ưu đãi nào.
+                        <p className="text-center text-xs text-gray-400 py-2">
+                          Không có ưu đãi nào.
                         </p>
                       )
                     )}
                   </>
                 )}
               </div>
-              <div className="p-6 border-t border-gray-300 bg-white sticky bottom-0 z-10">
-                <div className="flex justify-between items-center mb-6">
-                  <div className="font-semibold text-xl text-gray-800">
-                    Tạm tính
+
+              {cartItems.length > 0 && (
+                <div className="p-5 md:p-6 border-t border-gray-200 bg-white sticky bottom-0 z-10">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="font-semibold text-gray-700">
+                      Tạm tính:
+                    </span>
+                    <span className="text-xl font-bold text-gray-900">
+                      {formatPrice(subtotalOfAllItems)}
+                    </span>
                   </div>
-                  <div className="font-bold text-xl">
-                    {formatPrice(subtotalOfAllItems)}
-                  </div>
-                </div>
-                {cartItems.length > 0 && (
                   <Link
                     to="/checkout"
-                    onClick={closeCart}
-                    className="w-full py-3 rounded transition-colors text-lg font-semibold text-center inline-block bg-black text-white hover:bg-gray-800 shadow-lg"
+                    onClick={closeCartPanel}
+                    className="w-full py-3 px-4 rounded-lg transition-colors text-base font-semibold text-center inline-block bg-gray-800 text-white hover:bg-gray-700 shadow-md"
                   >
-                    {" "}
-                    Thanh toán{" "}
+                    Thanh toán
                   </Link>
-                )}
-                {cartItems.length > 0 && (
-                  <div className="flex justify-center items-center mt-4 text-sm font-semibold">
+                  <div className="text-center mt-3">
                     <Link
                       to="/cart"
-                      onClick={closeCart}
-                      className="text-blue-600 hover:underline"
+                      onClick={closeCartPanel}
+                      className="text-blue-600 hover:underline text-xs font-medium"
                     >
-                      {" "}
-                      Xem giỏ hàng{" "}
-                    </Link>{" "}
-                    {/* Or closeCartPanel */}
+                      Xem chi tiết giỏ hàng
+                    </Link>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- Render the Voucher Modal --- */}
       <AnimatePresence>
         {isVoucherModalOpen && (
           <VoucherModal
@@ -296,104 +328,131 @@ export default function CustomerLayout() {
         )}
       </AnimatePresence>
 
-      <main className={`flex-grow ${isSearchOpen ? "pt-[8rem]" : "pt-0"}`}>
+      <main className="flex-grow w-full">
         <Outlet />
       </main>
 
-      {/* Footer (remains the same) */}
-      <footer className="bg-white pt-12 pb-6 shadow-md border-t border-gray-200">
-        {/* ... footer content ... */}
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8">
+      <footer className="bg-white pt-12 pb-6 shadow-md border-t-2 border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="md:col-span-1">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">
               VỀ RETREND.
             </h3>
-            <p className="text-sm text-gray-700 leading-relaxed mb-6">
-              {" "}
-              Retrend ra đời đầu năm 2025 với sứ mệnh đưa thời trang bền vững
-              đến gần hơn với mọi người. Khởi đầu là một trang chia sẻ câu
-              chuyện cuộc sống giản dị, chúng mình đã mở rộng thành nền tảng mua
-              bán quần áo second-hand chất lượng cao. Retrend không chỉ là nơi
-              mua sắm — đó còn là cộng đồng những người yêu phong cách tối giản,
-              sáng tạo và trách nhiệm với môi trường.{" "}
+            <p className="text-xs text-gray-600 leading-relaxed mb-4">
+              Retrend - Nền tảng mua bán thời trang secondhand uy tín. Khám phá
+              phong cách bền vững, độc đáo và tiết kiệm.
             </p>
-            <div className="text-sm text-gray-700 space-y-3">
+            <div className="text-xs text-gray-600 space-y-1.5">
               <p className="flex items-start">
-                {" "}
-                <FaMapMarkerAlt className="mr-2 mt-1 text-gray-600 flex-shrink-0" />{" "}
-                <span>FPT University, Quận 9, Thành phố Hồ Chí Minh</span>{" "}
+                <FaMapMarkerAlt className="mr-2 mt-0.5 text-gray-500 flex-shrink-0 w-3.5 h-3.5" />
+                <span>
+                  Lô E2a-7, Đường D1, Khu Công nghệ cao, Long Thạnh Mỹ, Tp. Thủ
+                  Đức, TP.HCM
+                </span>
               </p>
               <p className="flex items-center">
-                {" "}
-                <FaPhone className="mr-2 text-gray-600 flex-shrink-0" />{" "}
-                0342.1900.17{" "}
+                <FaPhone className="mr-2 text-gray-500 flex-shrink-0 w-3.5 h-3.5" />
+                0123.456.789
               </p>
               <p className="flex items-center">
-                {" "}
-                <FaEnvelope className="mr-2 text-gray-600 flex-shrink-0" />{" "}
-                retrend@gmail.com{" "}
+                <FaEnvelope className="mr-2 text-gray-500 flex-shrink-0 w-3.5 h-3.5" />
+                support@retrend.vn
               </p>
-            </div>{" "}
+            </div>
           </div>
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-8">
             <div>
-              {" "}
-              <h3 className="text-xl font-bold mb-4 text-gray-800">
-                {" "}
-                CHÍNH SÁCH MUA HÀNG.{" "}
-              </h3>{" "}
-              <ul className="text-sm text-gray-700 space-y-2 list-disc list-inside">
+              <h3 className="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wider">
+                CHÍNH SÁCH
+              </h3>
+              <ul className="text-xs text-gray-600 space-y-1.5">
                 <li>
-                  <Link to="/returns" className="hover:underline">
-                    {" "}
-                    Chính sách đổi / trả{" "}
+                  <Link
+                    to="/returns"
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    Đổi / Trả
                   </Link>
                 </li>
                 <li>
-                  <Link to="/shipping" className="hover:underline">
-                    {" "}
-                    Chính sách vận chuyển{" "}
+                  <Link
+                    to="/shipping"
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    Vận chuyển
                   </Link>
                 </li>
                 <li>
-                  <Link to="/contact" className="hover:underline">
-                    {" "}
-                    Liên hệ{" "}
+                  <Link
+                    to="/privacy"
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    Bảo mật
                   </Link>
                 </li>
                 <li>
-                  <Link to="#" className="hover:underline">
-                    {" "}
-                    Hướng dẫn bảo quản / sử dụng{" "}
+                  <Link
+                    to="/terms"
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    Điều khoản
                   </Link>
                 </li>
-                <li>
-                  <Link to="#" className="hover:underline">
-                    {" "}
-                    Danh sách cửa hàng{" "}
-                  </Link>
-                </li>
-              </ul>{" "}
+              </ul>
             </div>
             <div>
-              {" "}
-              <h3 className="text-xl font-bold mb-4 text-gray-800">
-                {" "}
-                Phương thức vận chuyển{" "}
-              </h3>{" "}
-              <p className="text-sm text-gray-700 space-y-2">
-                {" "}
-                <span>Giao hàng tiêu chuẩn (2-5 ngày)</span>{" "}
-                <span>Giao hàng hỏa tốc (Nội thành)</span>{" "}
-              </p>{" "}
+              <h3 className="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wider">
+                HỖ TRỢ
+              </h3>
+              <ul className="text-xs text-gray-600 space-y-1.5">
+                <li>
+                  <Link
+                    to="/contact"
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    Liên hệ
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/faq"
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    Câu hỏi thường gặp
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/how-to-sell"
+                    className="hover:text-blue-600 hover:underline"
+                  >
+                    Hướng dẫn bán hàng
+                  </Link>
+                </li>
+              </ul>
             </div>
-          </div>{" "}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-3 uppercase tracking-wider">
+                KẾT NỐI
+              </h3>{" "}
+              <p className="text-xs text-gray-600">Facebook, Instagram</p>
+            </div>
+          </div>
         </div>
-        <div className="border-t border-gray-200 mt-8 pt-6 text-center text-sm text-gray-600">
-          {" "}
-          Copyright © 2025 THE RETREND.{" "}
+        <div className="border-t border-gray-200 mt-8 pt-6 text-center text-xs text-gray-500">
+          Copyright © {new Date().getFullYear()} THE RETREND. All rights
+          reserved.
         </div>
       </footer>
+      <style jsx global>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 }

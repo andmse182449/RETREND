@@ -172,6 +172,7 @@ async function handleSimpleSuccessResponse(response) {
 
 function transformApiProduct(apiProduct) {
   if (!apiProduct) return null;
+  // ... (image array logic as before)
   let imagesArray = [];
   const placeholderImage = "https://via.placeholder.com/400x500?text=No+Image";
   if (apiProduct.imageUrl) {
@@ -185,33 +186,24 @@ function transformApiProduct(apiProduct) {
     }
   }
   if (imagesArray.length === 0) imagesArray.push(placeholderImage);
-  const price = parseFloat(apiProduct.price);
+
+  const price = parseFloat(apiProduct.price); // Price from API for this product
   const safePrice = !isNaN(price) ? price : 0;
-  const originalPrice = parseFloat(apiProduct.originalPrice);
-  const safeOriginalPrice = !isNaN(originalPrice)
-    ? originalPrice
-    : safePrice * 1.2;
+
   return {
-    id: apiProduct.productId,
+    id: apiProduct.productId, // This is the productId
     name: apiProduct.productName?.trim() || "Unnamed Product",
     description: apiProduct.productDescription || "No description available.",
-    price: safePrice,
-    originalPrice: safeOriginalPrice,
-    priceVND: safePrice,
-    originalPriceVND: safeOriginalPrice,
-    condition:
-      apiProduct.condition ||
-      (apiProduct.status === "Available" ? "Good" : apiProduct.status || "N/A"),
+    price: safePrice, // Store the parsed base price
+    priceVND: safePrice, // <<< THIS IS LIKELY WHAT YOUR UI USES FOR DISPLAY
+    // ... other transformed fields (originalPrice, condition, seller, etc.)
     image: imagesArray[0],
     images: imagesArray,
-    seller: apiProduct.username || "Unknown Seller",
+    seller: apiProduct.username, // Username of the product lister
     createdAt: apiProduct.createdAt
       ? new Date(apiProduct.createdAt).toISOString()
       : new Date().toISOString(),
     status: apiProduct.status || "Unknown",
-    location: apiProduct.location || "N/A",
-    color: apiProduct.color || "N/A",
-    size: apiProduct.size || "N/A",
   };
 }
 
@@ -233,19 +225,34 @@ export const getAllAvailableProducts = async () => {
   }
 };
 export const getProductById = async (productId) => {
-  /* ... as before ... */
-  if (!productId) return null;
-  const url = `${API_BASE_URL}/v1.0/product/get/${productId}`;
+  if (!productId) {
+    console.warn("productService.getProductById: called with no productId");
+    return null;
+  }
+  const url = `${API_BASE_URL}/v1.0/product/get-product-by-id/${productId}`; // Ensure this endpoint is correct
   const token = localStorage.getItem("authToken");
   const headers = { Accept: "application/json" };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   try {
     const response = await fetch(url, { method: "GET", headers: headers });
-    const apiProduct = await handleSingleProductResponse(response);
-    return transformApiProduct(apiProduct);
+    // handleSingleProductResponse should return the 'data' part if wrapped, or direct object
+    const apiProductData = await handleSingleProductResponse(response);
+    if (!apiProductData) {
+      console.warn(
+        `ProductService: No data returned for product ID ${productId}`
+      );
+      return null;
+    }
+    return transformApiProduct(apiProductData);
   } catch (error) {
-    console.error(`Error fetching product ID ${productId}:`, error.message);
-    return null;
+    console.error(
+      `ProductService: Error fetching product by ID ${productId}:`,
+      error
+    );
+    return null; // Important: return null on error so Promise.all doesn't reject entirely
   }
 };
 export const getProductsByUsername = async (username) => {
@@ -623,5 +630,40 @@ export const getProductsByBlindboxName = async (blindboxName) => {
       error.status ? `(Status: ${error.status})` : ""
     );
     return []; // Return empty array to allow UI to handle gracefully
+  }
+};
+
+/**
+ * Fetches the name of the current blindbox.
+ * GET /v1.0/product/get-name-blindbox
+ * @returns {Promise<string|null>} The blindbox name as a string, or null on error.
+ */
+export const getBlindboxName = async () => {
+  const url = `${API_BASE_URL}/v1.0/product/get-name-blindbox`;
+  const token = localStorage.getItem("authToken");
+
+  const headers = {
+    Accept: "*/*",
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    console.warn("getBlindboxName: No authToken found.");
+  }
+
+  try {
+    const response = await fetch(url, { method: "GET", headers });
+    if (!response.ok) {
+      let errorText = await response.text();
+      throw new Error(
+        `API Error: ${response.status} ${response.statusText} - ${errorText}`
+      );
+    }
+    // The API returns plain text (e.g., "WINTER")
+    const blindboxName = await response.text();
+    return blindboxName?.trim() || null;
+  } catch (error) {
+    console.error("Error in getBlindboxName:", error.message);
+    return null;
   }
 };

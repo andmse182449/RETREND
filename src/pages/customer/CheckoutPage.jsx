@@ -375,7 +375,6 @@ export default function CheckoutPage() {
   // --- End Voucher Handlers ---
 
   const handleSubmitOrder = async (e) => {
-    /* ... (keep your existing submit logic) ... */
     e.preventDefault();
     setError(null);
     const requiredShippingFields = [
@@ -424,7 +423,7 @@ export default function CheckoutPage() {
         subtotal: currentSubtotal,
       },
       orderItemsRequest: {
-        productIds: itemsToCheckout.map((item) => parseInt(item.id, 10)),
+        orderItemsId: itemsToCheckout.map((item) => parseInt(item.orderItemsId, 10)),
       },
     };
     console.log(
