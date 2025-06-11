@@ -62,7 +62,7 @@ const getLoggedInUserInfo = () => {
   return null;
 };
 
-const ORDER_CREATE_API_URL = "http://localhost:8080/v1.0/orders/create";
+const ORDER_CREATE_API_URL = "https://be-exe2-1.onrender.com/v1.0/orders/create";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();

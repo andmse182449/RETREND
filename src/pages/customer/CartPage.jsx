@@ -126,7 +126,7 @@ export default function CartPage() {
     const subtotalAfterDiscount = subtotal - calculatedDiscountForDisplay;
     const freeShippingThreshold = 600000;
     if (appliedVoucher?.discountType === "shipping" || subtotalAfterDiscount >= freeShippingThreshold) return 0;
-    return 30000; // Default shipping
+    return 0; // Default shipping
   }, [subtotal, calculatedDiscountForDisplay, appliedVoucher]);
   
   const totalForDisplay = Math.max(0, subtotal + shippingForDisplay - calculatedDiscountForDisplay);
