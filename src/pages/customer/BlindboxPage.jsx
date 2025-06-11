@@ -1,10 +1,6 @@
 // src/pages/BlindboxPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import {
-  Link,
-  useParams,
-  useNavigate, // Added useParams
-} from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../../services/config";
 import {
   FaShoppingCart,
@@ -17,15 +13,24 @@ import {
   FaArrowLeft,
   FaCreditCard,
   FaSpinner,
+  FaStar,
+  FaHeart,
+  FaShare,
+  FaEye,
+  FaUser,
+  FaPhone,
+  FaMapMarkerAlt,
+  FaShieldAlt,
+  FaMagic,
 } from "react-icons/fa";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
-import { getProductsByBlindboxName } from "../../services/ProductService"; // To show potential items
-import { buyBlindbox as buyBlindboxApiCall } from "../../services/OrderService"; // API to buy the box
+import { getProductsByBlindboxName } from "../../services/ProductService";
+import { buyBlindbox as buyBlindboxApiCall } from "../../services/OrderService";
 import { useCart } from "../../context/CartContext";
-import shippingApiService from "../../services/ShippingApiService"; // To get shipping options
+import shippingApiService from "../../services/ShippingApiService";
 
-// Helper to get Logged In User Info (Adapt to your actual auth logic)
+// Helper to get Logged In User Info
 const getLoggedInUserInfo = () => {
   const token = localStorage.getItem("authToken");
   const userString = localStorage.getItem("user");
@@ -55,40 +60,51 @@ const getLoggedInUserInfo = () => {
   return null;
 };
 
-// --- BLINDBOX CONFIGURATION (Client-side for now) ---
-// In a real app, fetch this from an API: /v1.0/blindbox/details/{blindboxName}
+// BLINDBOX CONFIGURATION
 const BLINDBOX_DATA = {
   WINTER: {
-    // Key by blindboxName from URL param
-    displayName: "WINTER",
-    price: 199000, // Price of the box itself
+    displayName: "WINTER MYSTERY BOX",
+    price: 199000,
+    originalPrice: 299000,
     description:
-      "Khám phá những món đồ mùa đông ấm áp và phong cách! Mỗi hộp chứa ngẫu nhiên các sản phẩm thời trang secondhand chất lượng, hoàn hảo cho tiết trời se lạnh.",
+      "Khám phá những món đồ mùa đông ấm áp và phong cách! Mỗi hộp chứa ngẫu nhiên các sản phẩm thời trang secondhand chất lượng cao, hoàn hảo cho tiết trời se lạnh.",
+    features: [
+      "3-5 sản phẩm chất lượng cao",
+      "Giá trị thực tế 400-600k",
+      "Phong cách mùa đông trendy",
+      "Hàng secondhand được tuyển chọn kỹ",
+    ],
     bannerImage:
-      "https://images.pexels.com/photos/3755706/pexels-photo-3755706.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1", // Example image
-    themeColor: "from-sky-500 to-indigo-600", // For gradient
-    textColor: "text-sky-100",
+      "https://images.pexels.com/photos/3755706/pexels-photo-3755706.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1",
+    themeColor: "from-blue-600 via-purple-600 to-indigo-700",
+    textColor: "text-white",
+    stats: {
+      sold: 127,
+      rating: 4.8,
+      reviews: 89,
+    },
   },
 };
-// --- END BLINDBOX CONFIGURATION ---
 
 export default function BlindboxPurchasePage() {
-  const { blindboxNameUrl } = useParams(); // Get blindboxName from URL if dynamic
+  const { blindboxNameUrl } = useParams();
   const navigate = useNavigate();
-  const { formatPrice } = useCart(); // Assuming CartContext provides formatPrice
+  const { formatPrice } = useCart();
 
   const [blindboxDetails, setBlindboxDetails] = useState(null);
   const [potentialItems, setPotentialItems] = useState([]);
   const [isLoadingBoxData, setIsLoadingBoxData] = useState(true);
   const [error, setError] = useState(null);
+  const [isLiked, setIsLiked] = useState(false);
+  const [showAllItems, setShowAllItems] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState({
     hours: 24,
     minutes: 59,
     seconds: 59,
-  }); // Example timer
+  });
 
-  // Shipping and Payment state (similar to CheckoutPage)
+  // Shipping and Payment state
   const [shippingForm, setShippingForm] = useState({
     fullName: "",
     phone: "",
@@ -104,13 +120,10 @@ export default function BlindboxPurchasePage() {
     useState(null);
   const [isLoadingShipping, setIsLoadingShipping] = useState(true);
   const [isProcessingPurchase, setIsProcessingPurchase] = useState(false);
-
-  // Add voucher state (was missing)
   const [appliedVoucher, setAppliedVoucher] = useState(null);
 
-  // --- Effect to set Blindbox Details and Fetch Potential Items ---
+  // Effect to set Blindbox Details and Fetch Potential Items
   useEffect(() => {
-    // Use blindboxNameUrl from params, or a default if not provided/static page
     const currentBlindboxName = decodeURIComponent(blindboxNameUrl || "WINTER");
     const details = BLINDBOX_DATA[currentBlindboxName];
 
@@ -123,7 +136,7 @@ export default function BlindboxPurchasePage() {
     setBlindboxDetails(details);
 
     const fetchItems = async () => {
-      setIsLoadingBoxData(true); // Combined loading state
+      setIsLoadingBoxData(true);
       setError(null);
       try {
         const productsData = await getProductsByBlindboxName(
@@ -143,12 +156,12 @@ export default function BlindboxPurchasePage() {
     fetchItems();
   }, [blindboxNameUrl]);
 
-  // --- Effect to pre-fill shipping form for logged-in user ---
+  // Effect to pre-fill shipping form for logged-in user
   useEffect(() => {
     const currentUser = getLoggedInUserInfo();
     if (currentUser) {
       setShippingForm({
-        fullName: currentUser.fullName || "", // Assuming fullName from getLoggedInUserInfo
+        fullName: currentUser.fullName || "",
         phone: currentUser.phone || "",
         email: currentUser.email || "",
         city: currentUser.shippingAddress?.city || "",
@@ -158,9 +171,9 @@ export default function BlindboxPurchasePage() {
         addressDetail: currentUser.shippingAddress?.addressDetail || "",
       });
     }
-  }, []); // Run once
+  }, []);
 
-  // --- Effect to Fetch Shipping Methods ---
+  // Effect to Fetch Shipping Methods
   useEffect(() => {
     const fetchShipping = async () => {
       setIsLoadingShipping(true);
@@ -184,9 +197,22 @@ export default function BlindboxPurchasePage() {
     fetchShipping();
   }, []);
 
-  // --- Timer Effect (can be kept or removed if not relevant to this new design) ---
+  // Timer Effect
   useEffect(() => {
-    /* ... your timer logic ... */
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev.seconds > 0) {
+          return { ...prev, seconds: prev.seconds - 1 };
+        } else if (prev.minutes > 0) {
+          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+        } else if (prev.hours > 0) {
+          return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
+        }
+        return prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   const handleShippingInputChange = (e) =>
@@ -194,7 +220,7 @@ export default function BlindboxPurchasePage() {
 
   const currentShippingCost = useMemo(() => {
     if (!selectedShippingMethodId || availableShippingMethods.length === 0)
-      return 30000; // Default
+      return 30000;
     const selectedMethod = availableShippingMethods.find(
       (m) =>
         String(m.shippingMethodId || m.id) === String(selectedShippingMethodId)
@@ -207,7 +233,6 @@ export default function BlindboxPurchasePage() {
     return (parseFloat(blindboxDetails.price) || 0) + currentShippingCost;
   }, [blindboxDetails, currentShippingCost]);
 
-  // =====================================================================================
   const handlePurchaseBlindbox = async () => {
     console.log("=== Starting Purchase Process ===");
 
@@ -250,7 +275,7 @@ export default function BlindboxPurchasePage() {
     }
 
     setIsProcessingPurchase(true);
-    setError(null); // Clear previous page-level errors
+    setError(null);
 
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
@@ -260,20 +285,19 @@ export default function BlindboxPurchasePage() {
       return;
     }
 
-    let checkoutUrl = null; // Track checkout URL for redirect check
+    let checkoutUrl = null;
 
     try {
       const payload = {
-        userId: String(currentUser.userId), // Ensure string type if API expects it
-        blindboxName: blindboxDetails.displayName, // Or the internal name/ID your API expects
+        userId: String(currentUser.userId),
+        blindboxName: blindboxDetails.displayName,
         shippingId: parseInt(selectedShippingMethodId, 10),
         shippingAddress:
           `${shippingForm.address}, ${shippingForm.ward}, ${shippingForm.district}, ${shippingForm.city}`.trim(),
-        methodPayment: "online", // Assuming this is fixed for this flow
-        voucherId: appliedVoucher ? parseInt(appliedVoucher.id, 10) : "", // Fixed: use null instead of empty string
-        quantity: 1, // Blindboxes are typically quantity 1
-        subtotal: parseFloat(blindboxDetails.price), // Price of the blindbox itself
-        // total: finalTotal, // Backend should calculate the final total
+        methodPayment: "online",
+        voucherId: appliedVoucher ? parseInt(appliedVoucher.id, 10) : "",
+        quantity: 1,
+        subtotal: parseFloat(blindboxDetails.price),
       };
 
       console.log("=== API Call Details (Direct) ===");
@@ -285,7 +309,7 @@ export default function BlindboxPurchasePage() {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          Accept: "*/*", // As per your previous API specs
+          Accept: "*/*",
           "Content-Type": "application/json",
           Authorization: `Bearer ${authToken}`,
         },
@@ -296,11 +320,10 @@ export default function BlindboxPurchasePage() {
       console.log("Status:", response.status);
       console.log("OK:", response.ok);
 
-      // --- DIRECT RESPONSE HANDLING ---
       if (!response.ok) {
         let errorResponseMessage = `Lỗi API: ${response.status}`;
         try {
-          const errorBody = await response.json(); // Try to get JSON error details
+          const errorBody = await response.json();
           console.error("API Error Body:", errorBody);
           errorResponseMessage =
             errorBody.message ||
@@ -308,33 +331,28 @@ export default function BlindboxPurchasePage() {
             errorBody.error ||
             errorResponseMessage;
         } catch (e) {
-          // If error body is not JSON, try to get text
           try {
             const textError = await response.text();
             console.error("API Error Text Body:", textError);
-            if (textError) errorResponseMessage = textError.substring(0, 200); // Limit length
+            if (textError) errorResponseMessage = textError.substring(0, 200);
           } catch (textE) {
             /* ignore if text body also fails */
           }
         }
         const error = new Error(errorResponseMessage);
-        error.status = response.status; // Attach status to error object
+        error.status = response.status;
         throw error;
       }
 
-      // If response.ok is true, expect JSON { checkoutUrl, qrCode, ... }
       const responseData = await response.json();
       console.log("=== Parsed API Response Data ===");
       console.log("Response Data:", responseData);
 
       if (responseData && responseData.checkoutUrl) {
-        checkoutUrl = responseData.checkoutUrl; // Store for redirect check
+        checkoutUrl = responseData.checkoutUrl;
         console.log("Redirecting to PayOS checkout:", responseData.checkoutUrl);
         toast.info("Đang chuyển hướng đến cổng thanh toán PayOS...");
-        // Optionally clear cart items related to this blindbox if they were "reserved"
-        // For now, just redirecting.
         window.location.href = responseData.checkoutUrl;
-        // setIsProcessingPurchase(false); // Page will navigate away
       } else {
         console.error(
           "Invalid API success response structure, missing checkoutUrl:",
@@ -349,14 +367,14 @@ export default function BlindboxPurchasePage() {
       console.error("Error object:", err);
       console.error("Error message:", err.message);
       console.error("Error status (if available):", err.status);
-      console.error("Error data (if available from API error):", err.data); // if you attach it
+      console.error("Error data (if available from API error):", err.data);
 
       let displayErrorMessage =
         err.message || "Mua blindbox thất bại. Vui lòng thử lại.";
       if (err.status === 401) {
         displayErrorMessage =
           "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.";
-        navigate("/login"); // Redirect to login for auth errors
+        navigate("/login");
       } else if (err.status === 400) {
         displayErrorMessage = `Dữ liệu không hợp lệ: ${err.message}`;
       } else if (err.status === 500) {
@@ -364,389 +382,573 @@ export default function BlindboxPurchasePage() {
       }
 
       toast.error(displayErrorMessage);
-      setError(displayErrorMessage); // Set page-level error state
+      setError(displayErrorMessage);
     } finally {
-      // Ensure loading state is turned off if we didn't navigate away
-      // Fixed: check if checkoutUrl was set instead of undefined variable
       if (!checkoutUrl) {
         setIsProcessingPurchase(false);
       }
     }
   };
-  // =====================================================================================
-  const formatTime = (time) => (time < 10 ? `0${time}` : time); // Keep for timer display
 
-  // --- Render Logic ---
+  const formatTime = (time) => (time < 10 ? `0${time}` : time);
+
+  const displayedItems = showAllItems
+    ? potentialItems
+    : potentialItems.slice(0, 6);
+
+  // Loading state
   if (isLoadingBoxData || (isLoadingShipping && !blindboxDetails)) {
-    // Combined initial loading
     return (
-      <div className="min-h-screen bg-beige py-12 px-4 flex justify-center items-center">
-        <FaSpinner className="animate-spin text-4xl text-amber-700" />
-      </div>
-    );
-  }
-  if (error && !blindboxDetails) {
-    // If blindbox details themselves failed to load based on name
-    return (
-      <div className="min-h-screen bg-beige py-12 px-4 text-center">
-        <h2 className="text-2xl font-semibold text-red-700">Lỗi</h2>
-        <p className="text-gray-700 mt-2">{error}</p>
-        <Link
-          to="/"
-          className="mt-6 inline-block bg-amber-600 text-white px-6 py-2 rounded hover:bg-amber-700"
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 py-12 px-4 flex justify-center items-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
         >
-          Về Trang Chủ
-        </Link>
+          <div className="relative">
+            <FaBoxOpen className="text-6xl text-purple-600 mb-4 mx-auto animate-bounce" />
+            <FaSpinner className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-spin text-2xl text-white" />
+          </div>
+          <p className="text-lg text-gray-600">
+            Đang tải thông tin hộp bí ẩn...
+          </p>
+        </motion.div>
       </div>
     );
   }
-  if (!blindboxDetails) {
-    // Should be caught by error above, but as a fallback
+
+  // Error state
+  if (error && !blindboxDetails) {
     return (
-      <div className="min-h-screen bg-beige py-12 px-4 text-center">
-        <h2 className="text-2xl font-semibold">Blindbox không tồn tại.</h2>
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 py-12 px-4 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md mx-auto"
+        >
+          <FaBoxOpen className="text-6xl text-red-400 mb-6 mx-auto" />
+          <h2 className="text-2xl font-bold text-red-700 mb-4">
+            Oops! Có lỗi xảy ra
+          </h2>
+          <p className="text-gray-700 mb-6">{error}</p>
+          <Link
+            to="/"
+            className="inline-flex items-center bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors"
+          >
+            <FaArrowLeft className="mr-2" />
+            Về Trang Chủ
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (!blindboxDetails) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 text-center">
+        <h2 className="text-2xl font-semibold text-gray-800">
+          Blindbox không tồn tại.
+        </h2>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-beige py-8 px-4 text-gray-800 selection:bg-amber-500 selection:text-white">
-      <div className="max-w-6xl mx-auto">
-        {/* Back to All Products Link */}
-        <div className="mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 py-8 px-4 text-gray-800">
+      <div className="max-w-7xl mx-auto">
+        {/* Navigation */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="mb-8"
+        >
           <Link
             to="/products"
-            className="text-sm text-amber-700 hover:text-amber-800 hover:underline flex items-center"
+            className="inline-flex items-center text-purple-600 hover:text-purple-800 transition-colors group"
           >
-            <FaArrowLeft className="w-4 h-4 mr-1.5" /> Quay lại danh sách sản
-            phẩm
+            <FaArrowLeft className="mr-2 group-hover:-translate-x-1 transition-transform" />
+            <span className="font-medium">Quay lại danh sách sản phẩm</span>
           </Link>
-        </div>
+        </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-gray-200"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 items-start">
-            {/* Left Column: Blindbox Image & Info */}
-            <div className="lg:col-span-2">
-              <div className="relative aspect-square rounded-xl overflow-hidden shadow-lg group mb-6">
-                <img
-                  src={
-                    blindboxDetails.bannerImage ||
-                    "https://via.placeholder.com/600x600?text=Blindbox"
-                  }
-                  alt={blindboxDetails.displayName}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                <div
-                  className={`absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t ${
-                    blindboxDetails.themeColor || "from-black/70"
-                  } to-transparent`}
-                >
-                  <h1
-                    className={`text-3xl font-bold ${
-                      blindboxDetails.textColor || "text-white"
-                    } drop-shadow-md`}
-                  >
-                    {blindboxDetails.displayName}
-                  </h1>
-                </div>
-              </div>
-              <div className="space-y-3 text-sm">
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                  Mô tả Blindbox
-                </h2>
-                <p className="text-gray-600 leading-relaxed">
-                  {blindboxDetails.description}
-                </p>
-                <div className="pt-3 border-t border-gray-200">
-                  <p className="text-2xl font-extrabold text-amber-700">
-                    {formatPrice(blindboxDetails.price)}
-                  </p>
-                  {/* Timer - kept for thematic consistency if desired */}
-                  <div className="mt-2 flex items-center bg-gray-100 px-3 py-1.5 rounded-full text-xs text-gray-700 max-w-fit">
-                    <FaClock className="mr-1.5 text-gray-500" />
-                    Thời gian còn lại: {formatTime(timeLeft.hours)}h{" "}
-                    {formatTime(timeLeft.minutes)}m{" "}
-                    {formatTime(timeLeft.seconds)}s
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Middle Column: Potential Items */}
-            <div className="lg:col-span-1">
-              <h2 className="text-lg font-semibold text-gray-800 mb-3 text-center md:text-left">
-                Có thể chứa
-              </h2>
-              {isLoadingBoxData && potentialItems.length === 0 && (
-                <div className="text-xs text-gray-500 text-center py-4">
-                  <FaSpinner className="animate-spin inline mr-2" />
-                  Đang tải...
-                </div>
-              )}
-              {!isLoadingBoxData && error && potentialItems.length === 0 && (
-                <p className="text-xs text-red-500 text-center py-4">{error}</p>
-              )}
-              {!isLoadingBoxData && !error && potentialItems.length === 0 && (
-                <p className="text-xs text-gray-500 text-center py-4">
-                  Không có thông tin vật phẩm.
-                </p>
-              )}
-
-              <div className="space-y-2 max-h-[300px] md:max-h-[400px] overflow-y-auto custom-scrollbar-thin bg-gray-50 p-3 rounded-lg border">
-                {potentialItems.map((item) => (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Product Showcase */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="lg:col-span-2"
+          >
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
+              {/* Hero Image Section */}
+              <div className="relative">
+                <div className="aspect-[16/10] overflow-hidden">
+                  <img
+                    src={blindboxDetails.bannerImage}
+                    alt={blindboxDetails.displayName}
+                    className="w-full h-full object-cover"
+                  />
                   <div
-                    key={item.id}
-                    className="flex items-center gap-2 p-1.5 bg-white rounded shadow-sm text-xs"
-                  >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-8 h-8 object-cover rounded"
-                    />
-                    <span
-                      className="text-gray-700 truncate flex-1"
-                      title={item.name}
-                    >
-                      {item.name}
-                    </span>
-                    <span className="text-amber-700 font-medium whitespace-nowrap">
-                      {formatPrice(item.priceVND || item.price)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Column: Shipping & Purchase Action */}
-            <div className="lg:col-span-2">
-              <div className="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200 space-y-4">
-                <h2 className="text-lg font-semibold text-gray-800 border-b pb-2 mb-3">
-                  Thông tin giao hàng & Thanh toán
-                </h2>
-
-                {/* Shipping Form Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                  <div>
-                    <label htmlFor="fullName" className="checkout-label">
-                      Họ và Tên <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      id="fullName"
-                      value={shippingForm.fullName}
-                      onChange={handleShippingInputChange}
-                      className="checkout-input-sm"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="phone" className="checkout-label">
-                      Điện thoại <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      id="phone"
-                      value={shippingForm.phone}
-                      onChange={handleShippingInputChange}
-                      className="checkout-input-sm"
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="address" className="checkout-label">
-                      Địa chỉ <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="address"
-                      id="address"
-                      value={shippingForm.address}
-                      onChange={handleShippingInputChange}
-                      className="checkout-input-sm"
-                      placeholder="Số nhà, tên đường"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="ward" className="checkout-label">
-                      Phường/Xã <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="ward"
-                      id="ward"
-                      value={shippingForm.ward}
-                      onChange={handleShippingInputChange}
-                      className="checkout-input-sm"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="district" className="checkout-label">
-                      Quận/Huyện <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="district"
-                      id="district"
-                      value={shippingForm.district}
-                      onChange={handleShippingInputChange}
-                      className="checkout-input-sm"
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="city" className="checkout-label">
-                      Tỉnh/Thành phố <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="city"
-                      id="city"
-                      value={shippingForm.city}
-                      onChange={handleShippingInputChange}
-                      className="checkout-input-sm"
-                      required
-                    />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="addressDetail" className="checkout-label">
-                      Ghi chú địa chỉ
-                    </label>
-                    <textarea
-                      name="addressDetail"
-                      id="addressDetail"
-                      value={shippingForm.addressDetail}
-                      onChange={handleShippingInputChange}
-                      className="checkout-input-sm"
-                      rows="2"
-                      placeholder="VD: Tòa nhà ABC, Lầu 2, Gần chợ..."
-                    ></textarea>
-                  </div>
+                    className={`absolute inset-0 bg-gradient-to-t ${blindboxDetails.themeColor} opacity-70`}
+                  ></div>
                 </div>
 
-                <div>
-                  <h4 className="text-xs font-medium text-gray-600 mb-1.5">
-                    Phương thức vận chuyển{" "}
-                    <span className="text-red-500">*</span>
-                  </h4>
-                  {isLoadingShipping && (
-                    <div className="text-xs text-gray-400">
-                      <FaSpinner className="animate-spin inline mr-1" /> Đang
-                      tải...
-                    </div>
-                  )}
-                  <div className="space-y-1.5">
-                    {availableShippingMethods.map((method) => (
-                      <label
-                        key={method.shippingMethodId || method.id}
-                        className={`flex items-center p-2.5 border rounded-md hover:border-amber-600 cursor-pointer text-xs transition-all ${
-                          String(method.shippingMethodId || method.id) ===
-                          String(selectedShippingMethodId)
-                            ? "bg-amber-50 border-amber-600 ring-1 ring-amber-500"
-                            : "border-gray-300"
+                {/* Overlay Content */}
+                <div className="absolute inset-0 flex flex-col justify-between p-8">
+                  {/* Top Actions */}
+                  <div className="flex justify-between items-start">
+                    <div className="flex space-x-2">
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setIsLiked(!isLiked)}
+                        className={`p-3 rounded-full backdrop-blur-sm transition-colors ${
+                          isLiked
+                            ? "bg-red-500 text-white"
+                            : "bg-white/20 text-white hover:bg-white/30"
                         }`}
                       >
-                        <input
-                          type="radio"
-                          name="shippingMethodBlindbox"
-                          value={String(method.shippingMethodId || method.id)}
-                          checked={
-                            String(method.shippingMethodId || method.id) ===
-                            String(selectedShippingMethodId)
-                          }
-                          onChange={() =>
-                            setSelectedShippingMethodId(
-                              String(method.shippingMethodId || method.id)
-                            )
-                          }
-                          className="form-radio h-3.5 w-3.5 text-amber-600 mr-2 focus:ring-amber-500"
-                        />
-                        <span className="flex-grow font-medium text-gray-700">
-                          {method.name}
+                        <FaHeart className="text-lg" />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className="p-3 rounded-full bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm transition-colors"
+                      >
+                        <FaShare className="text-lg" />
+                      </motion.button>
+                    </div>
+
+                    {/* Limited Time Badge */}
+                    <motion.div
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ repeat: Infinity, duration: 2 }}
+                      className="bg-red-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg"
+                    >
+                      🔥 GIỚI HẠN THỜI GIAN
+                    </motion.div>
+                  </div>
+
+                  {/* Bottom Content */}
+                  <div>
+                    <h1 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-lg">
+                      {blindboxDetails.displayName}
+                    </h1>
+
+                    {/* Stats */}
+                    <div className="flex items-center space-x-6 text-white/90 mb-4">
+                      <div className="flex items-center">
+                        <FaStar className="text-yellow-400 mr-1" />
+                        <span className="font-semibold">
+                          {blindboxDetails.stats?.rating || 4.8}
                         </span>
-                        <span className="font-semibold text-gray-600">
-                          {formatPrice(method.fee)}
+                        <span className="text-sm ml-1">
+                          ({blindboxDetails.stats?.reviews || 89} đánh giá)
                         </span>
-                      </label>
+                      </div>
+                      <div className="flex items-center">
+                        <FaBoxOpen className="mr-1" />
+                        <span className="font-semibold">
+                          {blindboxDetails.stats?.sold || 127}
+                        </span>
+                        <span className="text-sm ml-1">đã bán</span>
+                      </div>
+                    </div>
+
+                    {/* Price */}
+                    <div className="flex items-center space-x-3">
+                      <span className="text-3xl font-black text-white">
+                        {formatPrice(blindboxDetails.price)}
+                      </span>
+                      {blindboxDetails.originalPrice && (
+                        <span className="text-lg text-white/70 line-through">
+                          {formatPrice(blindboxDetails.originalPrice)}
+                        </span>
+                      )}
+                      <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                        -33%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content Section */}
+              <div className="p-8">
+                {/* Timer */}
+                <motion.div
+                  initial={{ scale: 0.9 }}
+                  animate={{ scale: 1 }}
+                  className="bg-gradient-to-r from-orange-400 to-red-500 text-white p-6 rounded-2xl mb-8 text-center"
+                >
+                  <div className="flex items-center justify-center mb-2">
+                    <FaClock className="mr-2 text-lg" />
+                    <span className="font-semibold">Ưu đãi kết thúc sau:</span>
+                  </div>
+                  <div className="flex justify-center space-x-4 text-2xl font-bold">
+                    <div className="bg-white/20 rounded-lg px-3 py-2">
+                      {formatTime(timeLeft.hours)}
+                      <div className="text-xs opacity-75">Giờ</div>
+                    </div>
+                    <div className="bg-white/20 rounded-lg px-3 py-2">
+                      {formatTime(timeLeft.minutes)}
+                      <div className="text-xs opacity-75">Phút</div>
+                    </div>
+                    <div className="bg-white/20 rounded-lg px-3 py-2">
+                      {formatTime(timeLeft.seconds)}
+                      <div className="text-xs opacity-75">Giây</div>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Description */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
+                    <FaInfoCircle className="mr-3 text-purple-600" />
+                    Mô tả sản phẩm
+                  </h2>
+                  <p className="text-gray-700 leading-relaxed text-lg">
+                    {blindboxDetails.description}
+                  </p>
+                </div>
+
+                {/* Features */}
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <FaShieldAlt className="mr-3 text-green-600" />
+                    Điểm nổi bật
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {blindboxDetails.features?.map((feature, index) => (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center bg-green-50 p-3 rounded-lg"
+                      >
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                        <span className="text-gray-700">{feature}</span>
+                      </motion.div>
                     ))}
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-gray-200 mt-3">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Giá hộp:</span>
-                    <span className="font-medium">
-                      {formatPrice(blindboxDetails.price)}
+                {/* Potential Items */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                    <FaMagic className="mr-3 text-purple-600" />
+                    Có thể nhận được
+                    <span className="ml-2 text-sm font-normal text-gray-500">
+                      ({potentialItems.length} sản phẩm)
                     </span>
+                  </h3>
+
+                  {isLoadingBoxData && potentialItems.length === 0 && (
+                    <div className="text-center py-8">
+                      <FaSpinner className="animate-spin text-3xl text-purple-600 mb-4 mx-auto" />
+                      <p className="text-gray-600">Đang tải sản phẩm...</p>
+                    </div>
+                  )}
+
+                  {!isLoadingBoxData &&
+                    error &&
+                    potentialItems.length === 0 && (
+                      <div className="text-center py-8 bg-red-50 rounded-lg">
+                        <p className="text-red-600">{error}</p>
+                      </div>
+                    )}
+
+                  {!isLoadingBoxData &&
+                    !error &&
+                    potentialItems.length === 0 && (
+                      <div className="text-center py-8 bg-gray-50 rounded-lg">
+                        <FaBoxOpen className="text-4xl text-gray-400 mb-4 mx-auto" />
+                        <p className="text-gray-600">
+                          Chưa có thông tin sản phẩm
+                        </p>
+                      </div>
+                    )}
+
+                  {potentialItems.length > 0 && (
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        <AnimatePresence>
+                          {displayedItems.map((item, index) => (
+                            <motion.div
+                              key={item.id}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              transition={{ delay: index * 0.1 }}
+                              className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow group"
+                            >
+                              <div className="aspect-square overflow-hidden">
+                                <img
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                />
+                              </div>
+                              <div className="p-3">
+                                <h4
+                                  className="font-medium text-gray-900 truncate mb-1"
+                                  title={item.name}
+                                >
+                                  {item.name}
+                                </h4>
+                                <p className="text-purple-600 font-bold">
+                                  {formatPrice(item.priceVND || item.price)}
+                                </p>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+
+                      {potentialItems.length > 6 && (
+                        <div className="text-center">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setShowAllItems(!showAllItems)}
+                            className="bg-purple-100 text-purple-700 px-6 py-3 rounded-lg hover:bg-purple-200 transition-colors font-medium"
+                          >
+                            {showAllItems ? (
+                              <>
+                                Ẩn bớt <FaEye className="ml-2 inline" />
+                              </>
+                            ) : (
+                              <>
+                                Xem tất cả ({potentialItems.length - 6} sản phẩm
+                                khác) <FaEye className="ml-2 inline" />
+                              </>
+                            )}
+                          </motion.button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right Column: Purchase & Shipping Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-3xl shadow-xl p-8 flex flex-col justify-between"
+          >
+            {/* Purchase Summary */}
+            <div>
+              <h2 className="text-2xl font-bold text-purple-700 mb-6 flex items-center">
+                <FaShoppingCart className="mr-3" />
+                Đặt mua Blindbox
+              </h2>
+
+              {/* Shipping Form */}
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!isProcessingPurchase) handlePurchaseBlindbox();
+                }}
+              >
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-1">
+                      <FaUser className="inline mr-2 text-purple-500" />
+                      Họ và tên
+                    </label>
+                    <input
+                      type="text"
+                      name="fullName"
+                      value={shippingForm.fullName}
+                      onChange={handleShippingInputChange}
+                      className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      required
+                    />
                   </div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Phí vận chuyển:</span>
-                    <span className="font-medium">
-                      {isLoadingShipping
-                        ? "..."
-                        : formatPrice(currentShippingCost)}
-                    </span>
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-1">
+                      <FaPhone className="inline mr-2 text-purple-500" />
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={shippingForm.phone}
+                      onChange={handleShippingInputChange}
+                      className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      required
+                    />
                   </div>
-                  <div className="flex justify-between text-lg font-bold text-amber-700 mt-2">
-                    <span>Tổng cộng:</span>
-                    <span>{formatPrice(finalTotal)}</span>
+                  <div>
+                    <label className="block text-gray-700 font-medium mb-1">
+                      <FaMapMarkerAlt className="inline mr-2 text-purple-500" />
+                      Địa chỉ giao hàng
+                    </label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={shippingForm.address}
+                      onChange={handleShippingInputChange}
+                      className="w-full border rounded-lg px-4 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      placeholder="Số nhà, tên đường..."
+                      required
+                    />
+                    <input
+                      type="text"
+                      name="addressDetail"
+                      value={shippingForm.addressDetail}
+                      onChange={handleShippingInputChange}
+                      className="w-full border rounded-lg px-4 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      placeholder="Chi tiết khác (nếu có)"
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        name="ward"
+                        value={shippingForm.ward}
+                        onChange={handleShippingInputChange}
+                        className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        placeholder="Phường/Xã"
+                        required
+                      />
+                      <input
+                        type="text"
+                        name="district"
+                        value={shippingForm.district}
+                        onChange={handleShippingInputChange}
+                        className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        placeholder="Quận/Huyện"
+                        required
+                      />
+                      <input
+                        type="text"
+                        name="city"
+                        value={shippingForm.city}
+                        onChange={handleShippingInputChange}
+                        className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        placeholder="Tỉnh/Thành phố"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <button
-                  onClick={handlePurchaseBlindbox}
-                  disabled={
-                    isProcessingPurchase ||
-                    isLoadingShipping ||
-                    !selectedShippingMethodId
-                  }
-                  className="w-full mt-4 bg-amber-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-amber-700 transition-colors flex items-center justify-center text-base shadow-md disabled:bg-gray-300 disabled:cursor-not-allowed"
+                {/* Shipping Method */}
+                <div className="mt-4">
+                  <label className="block text-gray-700 font-medium mb-1">
+                    <FaTruck className="inline mr-2 text-purple-500" />
+                    Phương thức vận chuyển
+                  </label>
+                  {isLoadingShipping ? (
+                    <div className="flex items-center space-x-2 text-purple-600">
+                      <FaSpinner className="animate-spin" />
+                      <span>Đang tải phương thức vận chuyển...</span>
+                    </div>
+                  ) : (
+                    <select
+                      className="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      value={selectedShippingMethodId || ""}
+                      onChange={(e) =>
+                        setSelectedShippingMethodId(e.target.value)
+                      }
+                      required
+                    >
+                      {availableShippingMethods.map((method) => (
+                        <option
+                          key={method.shippingMethodId || method.id}
+                          value={method.shippingMethodId || method.id}
+                        >
+                          {method.name} - {formatPrice(method.fee)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
+                {/* Payment Method (fixed) */}
+                <div className="mt-4">
+                  <label className="block text-gray-700 font-medium mb-1">
+                    <FaCreditCard className="inline mr-2 text-purple-500" />
+                    Phương thức thanh toán
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      checked
+                      readOnly
+                      className="accent-purple-600"
+                    />
+                    <span>Thanh toán online qua PayOS</span>
+                  </div>
+                </div>
+
+                {/* Order Summary */}
+                <div className="mt-6 bg-purple-50 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-700">Giá Blindbox</span>
+                    <span className="font-bold text-purple-700">
+                      {formatPrice(blindboxDetails.price)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-700">Phí vận chuyển</span>
+                    <span className="font-bold text-purple-700">
+                      {formatPrice(currentShippingCost)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-2 mt-2">
+                    <span className="text-lg font-bold text-gray-900">
+                      Tổng cộng
+                    </span>
+                    <span className="text-2xl font-black text-purple-900">
+                      {formatPrice(finalTotal)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Purchase Button */}
+                <motion.button
+                  type="submit"
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  disabled={isProcessingPurchase}
+                  className={`w-full mt-6 py-3 rounded-xl font-bold text-lg flex items-center justify-center transition-colors
+      ${
+        isProcessingPurchase
+          ? "bg-purple-300 text-white cursor-not-allowed"
+          : "bg-purple-600 hover:bg-purple-700 text-white"
+      }`}
                 >
                   {isProcessingPurchase ? (
-                    <FaSpinner className="animate-spin mr-2" />
+                    <>
+                      <FaSpinner className="animate-spin mr-2" />
+                      Đang xử lý...
+                    </>
                   ) : (
-                    <FaShoppingCart className="mr-2" />
+                    <>
+                      <FaGift className="mr-2" />
+                      Mua ngay
+                    </>
                   )}
-                  {isProcessingPurchase ? "ĐANG XỬ LÝ..." : "MUA HỘP NÀY"}
-                </button>
-                {error && (
-                  <p className="text-red-500 text-xs mt-2 text-center">
-                    {error}
-                  </p>
-                )}
-              </div>
+                </motion.button>
+              </form>
             </div>
-          </div>
-        </motion.div>
+
+            {/* Security Note */}
+            <div className="mt-8 text-xs text-gray-500 flex items-center">
+              <FaShieldAlt className="mr-2 text-green-500" />
+              Thanh toán an toàn qua PayOS. Đảm bảo hoàn tiền nếu không nhận
+              được hàng.
+            </div>
+          </motion.div>
+        </div>
       </div>
-      <style jsx global>{`
-        .checkout-input-sm {
-          @apply w-full border border-gray-300 rounded-md px-2.5 py-1.5 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500;
-        }
-        .custom-scrollbar-thin::-webkit-scrollbar {
-          width: 5px;
-          height: 5px;
-        }
-        .custom-scrollbar-thin::-webkit-scrollbar-track {
-          background: #f9fafb;
-          border-radius: 10px;
-        }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #d1d5db;
-          border-radius: 10px;
-        }
-        .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af;
-        }
-      `}</style>
     </div>
   );
 }
