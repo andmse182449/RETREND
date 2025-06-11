@@ -63,7 +63,7 @@ const getLoggedInUserInfo = () => {
 // BLINDBOX CONFIGURATION
 const BLINDBOX_DATA = {
   WINTER: {
-    displayName: "WINTER MYSTERY BOX",
+    displayName: "WINTER",
     price: 199000,
     originalPrice: 299000,
     description:
