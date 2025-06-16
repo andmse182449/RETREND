@@ -14,7 +14,6 @@ class AdminAPIService {
 
   async _handleApiResponse(response) {
     const contentType = response.headers.get("content-type");
-
     if (!response.ok) {
       let errorMessage = `API Error: ${response.status} ${response.statusText || ''}`;
       let errorStatus = response.status;
@@ -41,125 +40,99 @@ class AdminAPIService {
     }
 
     if (response.status === 204) {
-      return { success: true, message: "Operation successful (No Content)", data: null };
+      return null;
     }
 
     if (contentType && contentType.includes("application/json")) {
-      const responseData = await response.json();
-      return responseData;
+      return await response.json();
     } else if (response.status >= 200 && response.status < 300) {
-      const textData = await response.text();
-      return { success: true, message: textData || "Operation successful (non-JSON OK)", data: textData };
+      return await response.text();
     } else {
       throw new Error("Received unexpected response type from server.");
     }
   }
 
+  // Tổng số đơn hàng theo trạng thái
   async getTotalOrderCountByStatus() {
     const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/total_order/status`;
     const token = this._getAuthToken();
-
-    const headers = {
-      'Accept': 'application/json',
-    };
+    const headers = { 'Accept': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
+  }
 
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: headers,
-      });
-      
-      const result = await this._handleApiResponse(response);
-      
-      // Ensure the response structure matches what we expect
-      if (!result || typeof result !== 'object') {
-        throw new Error('Invalid response format from server');
-      }
-      
-      // The data should be a map of status to count
-      if (!result.data || typeof result.data !== 'object') {
-        console.warn('Order count by status data is not in expected format', result);
-        return {
-          success: result.success || false,
-          message: result.message || 'Data format unexpected',
-          data: {} // Return empty object instead of failing
-        };
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('AdminAPIService: getTotalOrderCountByStatus failed:', error);
-      // Return a consistent error structure
-      throw {
-        success: false,
-        message: error.message || 'Failed to fetch order counts by status',
-        data: null
-      };
-    }
-}
-
+  // Tổng số đơn hàng
   async getTotalOrderCount() {
     const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/total_order`;
     const token = this._getAuthToken();
-
-    const headers = {
-      'Accept': 'application/json',
-    };
+    const headers = { 'Accept': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: headers,
-      });
-      return this._handleApiResponse(response);
-    } catch (error) {
-      console.error('AdminAPIService: getTotalOrderCount failed:', error);
-      throw error;
-    }
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
   }
 
+  // Tổng doanh thu
   async getTotalPrice() {
     const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/total_price`;
     const token = this._getAuthToken();
-
-    const headers = {
-      'Accept': 'application/json',
-    };
+    const headers = { 'Accept': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: headers,
-      });
-      return this._handleApiResponse(response);
-    } catch (error) {
-      console.error('AdminAPIService: getTotalPrice failed:', error);
-      throw error;
-    }
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
   }
 
+  // Tổng số khách hàng
   async getTotalCustomer() {
     const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/total_customer`;
     const token = this._getAuthToken();
-
-    const headers = {
-      'Accept': 'application/json',
-    };
+    const headers = { 'Accept': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
+  }
 
-    try {
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: headers,
-      });
-      return this._handleApiResponse(response);
-    } catch (error) {
-      console.error('AdminAPIService: getTotalCustomer failed:', error);
-      throw error;
-    }
+  // Doanh thu theo tháng
+  async getMonthlyRevenueStats(year) {
+    if (!year) throw new Error("Year is required");
+    const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/monthly_revenue?year=${year}`;
+    const token = this._getAuthToken();
+    const headers = { 'Accept': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
+  }
+
+  // Khách hàng mới theo tháng
+  async getMonthlyNewCustomers(year) {
+    if (!year) throw new Error("Year is required");
+    const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/monthly_new_customers?year=${year}`;
+    const token = this._getAuthToken();
+    const headers = { 'Accept': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
+  }
+
+  // Sản phẩm mới theo tháng
+  async getNewProductsByMonth(year) {
+    if (!year) throw new Error("Year is required");
+    const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/chart/products/monthly?year=${year}`;
+    const token = this._getAuthToken();
+    const headers = { 'Accept': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
+  }
+
+  // Phân bố trạng thái sản phẩm
+  async getProductStatusDistribution() {
+    const url = `${this.baseUrl}/${this.apiVersion}/${this.resourcePath}/chart/products/status-distribution`;
+    const token = this._getAuthToken();
+    const headers = { 'Accept': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(url, { method: 'GET', headers });
+    return this._handleApiResponse(response);
   }
 }
 
