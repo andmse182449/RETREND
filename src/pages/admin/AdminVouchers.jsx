@@ -1,5 +1,5 @@
-// src/pages/AdminVouchers.js
-import React, { useState, useEffect, useCallback } from "react"; // Added useCallback
+// src/pages/AdminVouchers.jsx
+import React, { useState, useEffect, useCallback } from "react";
 import {
   FaPlusCircle,
   FaEdit,
@@ -11,12 +11,44 @@ import {
   FaSpinner,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
-// --- API Service Import ---
-import voucherApiService from "../../services/VoucherApiService"; // Adjust path
+import voucherApiService from "../../services/VoucherApiService";
 
-// Helper to format date for display
+// --- Toast Component ---
+function Toast({ message, type = "success", onClose }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 30 }}
+      transition={{ duration: 0.3 }}
+      className={`fixed top-6 right-6 z-50 min-w-[240px] px-5 py-3 rounded-lg shadow-lg flex items-center gap-3
+        ${
+          type === "success"
+            ? "bg-green-600 text-white"
+            : "bg-red-600 text-white"
+        }
+      `}
+    >
+      {type === "success" ? (
+        <FaCheckCircle className="text-white text-lg" />
+      ) : (
+        <FaTimes className="text-white text-lg" />
+      )}
+      <span className="flex-1">{message}</span>
+      <button
+        onClick={onClose}
+        className="ml-2 text-white/80 hover:text-white transition"
+        aria-label="Đóng"
+      >
+        <FaTimes />
+      </button>
+    </motion.div>
+  );
+}
+
+// --- Helper Functions ---
 const formatDate = (dateString) => {
-  if (!dateString) return "Không có"; // 'No expiry'
+  if (!dateString) return "Không có";
   try {
     const date = new Date(dateString);
     if (!isNaN(date.getTime())) {
@@ -26,32 +58,51 @@ const formatDate = (dateString) => {
         year: "numeric",
       });
     }
-    return dateString; // Fallback if already formatted or unparseable
+    return dateString;
   } catch (e) {
-    console.error("Error formatting date:", dateString, e);
     return "Ngày không hợp lệ";
   }
 };
 
-// Helper to display discount value based on type
 const displayDiscount = (voucher) => {
   if (!voucher || typeof voucher.discountAmount === "undefined") return "N/A";
-  const type = voucher.discountType || voucher.type; // Handle both possible prop names
+  const type = voucher.discountType || voucher.type;
   const amount = voucher.discountAmount;
-
-  if (type === "fixed") {
-    return `${amount.toLocaleString()}₫`;
-  }
-  if (type === "percentage") {
-    return `${amount}%`; // Assuming discountAmount is already the percentage value (e.g., 10 for 10%)
-  }
-  if (type === "shipping") {
+  if (type === "fixed") return `${amount.toLocaleString()}₫`;
+  if (type === "percentage") return `${amount}%`;
+  if (type === "shipping")
     return amount === 0 || amount === "free_shipping"
       ? "Miễn phí vận chuyển"
       : `${amount.toLocaleString()}₫ phí ship`;
-  }
-  return `${amount.toLocaleString()}?`; // Fallback for unknown type
+  return `${amount.toLocaleString()}?`;
 };
+
+// --- Modal Component ---
+function Modal({ open, onClose, children }) {
+  if (!open) return null;
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 z-40 flex items-center justify-center bg-black/30"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      >
+        <motion.div
+          className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg relative"
+          initial={{ scale: 0.97, y: 40, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          exit={{ scale: 0.97, y: 40, opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {children}
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 
 export default function AdminVouchers() {
   const [vouchers, setVouchers] = useState([]);
@@ -60,46 +111,41 @@ export default function AdminVouchers() {
     code: "",
     discountAmount: "",
     minOrderAmount: "",
-    discountType: "fixed", // API uses discountType
+    discountType: "fixed",
     expiryDate: "",
-    status: "Active", // API uses status, default to Active
+    status: "Active",
   });
-  const [editingVoucher, setEditingVoucher] = useState(null); // Store full voucher object for edit
+  const [editingVoucher, setEditingVoucher] = useState(null);
 
-  // --- Loading and Error States ---
-  const [isLoading, setIsLoading] = useState(false); // For main list loading
-  const [isSubmitting, setIsSubmitting] = useState(false); // For form submission
-  const [error, setError] = useState(null); // For general errors
-  const [formError, setFormError] = useState(null); // For form-specific errors
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState(null);
+
+  // Toast state
+  const [toast, setToast] = useState(null);
 
   // --- Fetch Vouchers ---
   const fetchVouchers = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
     try {
-      // voucherApiService.getAvailableVouchers() returns the data array directly
-      // This function should also return transformed data if needed
       const fetchedVouchers = await voucherApiService.getAllVouchers();
-      // The API response for GET /available should match the structure needed
-      // id, code, discountAmount, minOrderAmount, expiryDate, status (isActive), discountType
-      // transformApiProduct from productService is not used here, so ensure direct fields match
-      // Or create a transformVoucher function if needed
       setVouchers(
         fetchedVouchers.map((v) => ({
           ...v,
-          // Ensure fields match what the UI expects, e.g., isActive from status
           isActive: v.status ? v.status.toLowerCase() === "available" : true,
-          type: v.discountType || (v.discountAmount > 0 ? "fixed" : "shipping"), // Ensure 'type' for displayDiscount
+          type: v.discountType || (v.discountAmount > 0 ? "fixed" : "shipping"),
         }))
       );
     } catch (err) {
-      console.error("Failed to fetch vouchers:", err);
-      setError(err.message || "Could not load vouchers.");
+      setToast({
+        message: err.message || "Không thể tải danh sách voucher.",
+        type: "error",
+      });
       setVouchers([]);
     } finally {
       setIsLoading(false);
     }
-  }, []); // Empty dependency array, fetch on mount
+  }, []);
 
   useEffect(() => {
     fetchVouchers();
@@ -122,7 +168,7 @@ export default function AdminVouchers() {
       minOrderAmount: "",
       discountType: "fixed",
       expiryDate: "",
-      status: "Active", // Default status for new
+      status: "Active",
     });
     setShowAddForm(true);
     setFormError(null);
@@ -133,12 +179,12 @@ export default function AdminVouchers() {
     setVoucherForm({
       code: voucher.code,
       discountAmount: voucher.discountAmount,
-      minOrderAmount: voucher.minOrderAmount || 0, // Ensure it's a number
-      discountType: voucher.discountType || voucher.type || "fixed", // Ensure type is set
+      minOrderAmount: voucher.minOrderAmount || 0,
+      discountType: voucher.discountType || voucher.type || "fixed",
       expiryDate: voucher.expiryDate
         ? new Date(voucher.expiryDate).toISOString().split("T")[0]
-        : "", // Format for date input
-      status: voucher.status || "Active", // Use status from API
+        : "",
+      status: voucher.status || "Active",
     });
     setShowAddForm(true);
     setFormError(null);
@@ -163,38 +209,20 @@ export default function AdminVouchers() {
       return;
     }
 
-    const payload = {
-      code: voucherForm.code,
-      discountAmount: parseFloat(voucherForm.discountAmount) || 0, // Ensure number
-      minOrderAmount: parseFloat(voucherForm.minOrderAmount) || 0, // Ensure number
-      expiryDate: voucherForm.expiryDate
-        ? new Date(voucherForm.expiryDate).toISOString()
-        : null, // API expects ISO string or null
-      // status is handled by change-status API or included in update
-      // discountType is conceptual for frontend, API might just use discountAmount
-      // Your API create/update expects specific fields, ensure they match
-    };
-
-    // For create, API expects: code, discountAmount, minOrderAmount, expiryDate
-    // For update, API expects: voucherId, and optionally other fields to update
-    // For change-status, API expects: voucherId, status (as query params)
-
     try {
       if (editingVoucher) {
-        // --- Update Existing Voucher ---
         const updatePayload = {
           voucherId: editingVoucher.voucherId ?? editingVoucher.id,
-          discountAmount: payload.discountAmount,
-          minOrderAmount: payload.minOrderAmount,
-          expiryDate: payload.expiryDate,
+          discountAmount: parseFloat(voucherForm.discountAmount) || 0,
+          minOrderAmount: parseFloat(voucherForm.minOrderAmount) || 0,
+          expiryDate: voucherForm.expiryDate
+            ? new Date(voucherForm.expiryDate).toISOString()
+            : null,
           status: voucherForm.status,
         };
-        console.log("Update voucher payload:", updatePayload);
         await voucherApiService.updateVoucher(updatePayload);
-        alert("Voucher updated successfully!");
+        setToast({ message: "Cập nhật voucher thành công!", type: "success" });
       } else {
-        // --- Add New Voucher ---
-        // Payload for create does not include voucherId or status initially
         const createPayload = {
           code: voucherForm.code,
           discountAmount: parseFloat(voucherForm.discountAmount) || 0,
@@ -204,21 +232,24 @@ export default function AdminVouchers() {
             : null,
         };
         await voucherApiService.createVoucher(createPayload);
-        alert("New voucher added successfully!");
+        setToast({ message: "Tạo voucher mới thành công!", type: "success" });
       }
-      fetchVouchers(); // Re-fetch the list to show changes
+      fetchVouchers();
       setShowAddForm(false);
       setEditingVoucher(null);
     } catch (err) {
-      console.error("Error submitting voucher form:", err);
-      setFormError(err.message || "Failed to save voucher.");
+      setFormError(err.message || "Không thể lưu voucher.");
+      setToast({
+        message: err.message || "Không thể lưu voucher.",
+        type: "error",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCancelForm = () => {
-    /* ... (keep as is) ... */ setEditingVoucher(null);
+    setEditingVoucher(null);
     setShowAddForm(false);
     setFormError(null);
   };
@@ -229,15 +260,19 @@ export default function AdminVouchers() {
         `Bạn có chắc muốn xóa voucher "${voucherCode}" (ID: ${voucherId})?`
       )
     ) {
-      setIsLoading(true); // Use general isLoading for table actions
-      setError(null);
+      setIsLoading(true);
       try {
-        await voucherApiService.deleteVoucher(voucherId); // Ensure deleteVoucher exists in service
-        alert(`Voucher ${voucherCode} đã được xóa.`);
-        fetchVouchers(); // Re-fetch to update list
+        await voucherApiService.deleteVoucher(voucherId);
+        setToast({
+          message: `Voucher "${voucherCode}" đã được xóa.`,
+          type: "success",
+        });
+        fetchVouchers();
       } catch (err) {
-        console.error("Failed to delete voucher:", err);
-        setError(err.message || "Could not delete voucher.");
+        setToast({
+          message: err.message || "Không thể xóa voucher.",
+          type: "error",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -255,17 +290,21 @@ export default function AdminVouchers() {
       )
     ) {
       setIsLoading(true);
-      setError(null);
       try {
         await voucherApiService.changeVoucherStatus(
           Number(voucher.voucherId ?? voucher.id),
           newStatus
         );
-        alert(`Trạng thái voucher "${voucher.code}" đã được cập nhật.`);
+        setToast({
+          message: `Trạng thái voucher "${voucher.code}" đã được cập nhật.`,
+          type: "success",
+        });
         fetchVouchers();
       } catch (err) {
-        console.error("Failed to toggle voucher status:", err);
-        setError(err.message || "Không thể cập nhật trạng thái voucher.");
+        setToast({
+          message: err.message || "Không thể cập nhật trạng thái voucher.",
+          type: "error",
+        });
       } finally {
         setIsLoading(false);
       }
@@ -273,46 +312,35 @@ export default function AdminVouchers() {
   };
 
   const handleCopyClick = (code) => {
-    /* ... (keep as is) ... */ navigator.clipboard
+    navigator.clipboard
       .writeText(code)
-      .then(() => alert(`Mã "${code}" đã được sao chép!`))
-      .catch((err) => console.error("Failed to copy code:", err));
+      .then(() =>
+        setToast({ message: `Mã "${code}" đã được sao chép!`, type: "success" })
+      )
+      .catch(() =>
+        setToast({ message: "Không thể sao chép mã.", type: "error" })
+      );
   };
 
   // --- Render UI ---
-  if (isLoading && vouchers.length === 0) {
-    // Initial loading state
-    return (
-      <div className="text-center py-10">
-        <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto" />
-      </div>
-    );
-  }
-  if (error && vouchers.length === 0) {
-    // Error when no data could be loaded
-    return (
-      <div className="text-center py-10 text-red-500">
-        Lỗi: {error}{" "}
-        <button
-          onClick={fetchVouchers}
-          className="ml-2 text-blue-500 underline"
-        >
-          Thử lại
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
-            Quản Lý Voucher
+            Quản Lý Mã Giảm Giá
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Tạo mới, chỉnh sửa và quản lý các mã giảm giá.
-          </p>
         </div>
         <button
           onClick={handleAddClick}
@@ -322,193 +350,182 @@ export default function AdminVouchers() {
         </button>
       </div>
 
-      {/* Add/Edit Voucher Form Modal-like Section */}
-      <AnimatePresence>
-        {showAddForm && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-xl p-6 mb-8 border border-gray-200"
+      {/* Modal for Add/Edit */}
+      <Modal open={showAddForm} onClose={handleCancelForm}>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-gray-800">
+            {editingVoucher ? "Chỉnh Sửa Voucher" : "Thêm Voucher Mới"}
+          </h2>
+          <button
+            onClick={handleCancelForm}
+            className="text-gray-400 hover:text-gray-600"
+            aria-label="Đóng"
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">
-                {editingVoucher ? "Chỉnh Sửa Voucher" : "Thêm Voucher Mới"}
-              </h2>
-              <button
-                onClick={handleCancelForm}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FaTimes size={18} />
-              </button>
-            </div>
-            {formError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-600 rounded-md text-sm">
-                {formError}
-              </div>
-            )}
-            <form
-              onSubmit={handleSubmitForm}
-              className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4"
-            >
-              {/* Voucher Code */}
-              <div className="md:col-span-1">
-                <label
-                  htmlFor="code"
-                  className="block text-xs font-medium text-gray-700 mb-1"
-                >
-                  Mã Voucher <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="code"
-                  name="code"
-                  value={voucherForm.code}
-                  onChange={handleFormChange}
-                  required
-                  className="admin-input"
-                  placeholder="VD: SUMMER25"
-                />
-              </div>
-              {/* Discount Type */}
-              <div className="md:col-span-1">
-                <label
-                  htmlFor="discountType"
-                  className="block text-xs font-medium text-gray-700 mb-1"
-                >
-                  Loại Giảm Giá <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="discountType"
-                  name="discountType"
-                  value={voucherForm.discountType}
-                  onChange={handleFormChange}
-                  className="admin-input"
-                >
-                  <option value="fixed">Số tiền cố định (₫)</option>
-                  <option value="percentage">Phần trăm (%)</option>
-                  <option value="shipping">Miễn phí vận chuyển</option>
-                </select>
-              </div>
-              {/* Discount Amount (conditional) */}
-              {voucherForm.discountType !== "shipping" && (
-                <div className="md:col-span-1">
-                  <label
-                    htmlFor="discountAmount"
-                    className="block text-xs font-medium text-gray-700 mb-1"
-                  >
-                    Giá trị giảm <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="discountAmount"
-                    name="discountAmount"
-                    value={voucherForm.discountAmount}
-                    onChange={handleFormChange}
-                    required
-                    className="admin-input"
-                    placeholder={
-                      voucherForm.discountType === "fixed"
-                        ? "VD: 50000"
-                        : "VD: 10 (cho 10%)"
-                    }
-                    min="0"
-                    step={
-                      voucherForm.discountType === "percentage" ? "0.1" : "1000"
-                    }
-                  />
-                </div>
-              )}
-              {/* Minimum Order */}
-              <div
-                className={`md:col-span-1 ${
-                  voucherForm.discountType === "shipping"
-                    ? "md:col-start-2"
-                    : ""
-                }`}
-              >
-                {" "}
-                {/* Adjust span if discountAmount hidden */}
-                <label
-                  htmlFor="minOrderAmount"
-                  className="block text-xs font-medium text-gray-700 mb-1"
-                >
-                  Đơn hàng tối thiểu (₫)
-                </label>
-                <input
-                  type="number"
-                  id="minOrderAmount"
-                  name="minOrderAmount"
-                  value={voucherForm.minOrderAmount}
-                  onChange={handleFormChange}
-                  className="admin-input"
-                  placeholder="VD: 100000 (bỏ trống nếu không có)"
-                  min="0"
-                  step="10000"
-                />
-              </div>
-              {/* Expiry Date */}
-              <div className="md:col-span-1">
-                <label
-                  htmlFor="expiryDate"
-                  className="block text-xs font-medium text-gray-700 mb-1"
-                >
-                  Ngày hết hạn
-                </label>
-                <input
-                  type="date"
-                  id="expiryDate"
-                  name="expiryDate"
-                  value={voucherForm.expiryDate}
-                  onChange={handleFormChange}
-                  className="admin-input"
-                  min={new Date().toISOString().split("T")[0]}
-                />
-              </div>
-              {/* Status (Active/Inactive) - only for edit or if backend sets default on create */}
-              {editingVoucher && ( // Or always show if create should also set status
-                <div className="md:col-span-1">
-                  <label
-                    htmlFor="status"
-                    className="block text-xs font-medium text-gray-700 mb-1"
-                  >
-                    Trạng thái
-                  </label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={voucherForm.status}
-                    onChange={handleFormChange}
-                    className="admin-input"
-                  >
-                    <option value="Active">Kích hoạt (Active)</option>
-                    <option value="Inactive">Không kích hoạt (Inactive)</option>
-                    {/* Add other statuses your API supports */}
-                  </select>
-                </div>
-              )}
-              <div className="md:col-span-2 flex justify-end gap-3 mt-3 pt-3 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={handleCancelForm}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-sm font-medium transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md font-medium transition-colors text-sm flex items-center disabled:bg-gray-400"
-                >
-                  {isSubmitting && <FaSpinner className="animate-spin mr-2" />}
-                  {editingVoucher ? "Lưu Thay Đổi" : "Thêm Voucher"}
-                </button>
-              </div>
-            </form>
-          </motion.div>
+            <FaTimes size={18} />
+          </button>
+        </div>
+        {formError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-600 rounded-md text-sm">
+            {formError}
+          </div>
         )}
-      </AnimatePresence>
+        <form
+          onSubmit={handleSubmitForm}
+          className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4"
+        >
+          {/* Voucher Code */}
+          <div className="md:col-span-1">
+            <label
+              htmlFor="code"
+              className="block text-xs font-medium text-gray-700 mb-1"
+            >
+              Mã Voucher <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              id="code"
+              name="code"
+              value={voucherForm.code}
+              onChange={handleFormChange}
+              required
+              className="admin-input"
+              placeholder="VD: SUMMER25"
+              disabled={!!editingVoucher}
+            />
+          </div>
+          {/* Discount Type */}
+          <div className="md:col-span-1">
+            <label
+              htmlFor="discountType"
+              className="block text-xs font-medium text-gray-700 mb-1"
+            >
+              Loại Giảm Giá <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="discountType"
+              name="discountType"
+              value={voucherForm.discountType}
+              onChange={handleFormChange}
+              className="admin-input"
+              disabled={!!editingVoucher}
+            >
+              <option value="fixed">Số tiền cố định (₫)</option>
+              <option value="percentage">Phần trăm (%)</option>
+              <option value="shipping">Miễn phí vận chuyển</option>
+            </select>
+          </div>
+          {/* Discount Amount (conditional) */}
+          {voucherForm.discountType !== "shipping" && (
+            <div className="md:col-span-1">
+              <label
+                htmlFor="discountAmount"
+                className="block text-xs font-medium text-gray-700 mb-1"
+              >
+                Giá trị giảm <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                id="discountAmount"
+                name="discountAmount"
+                value={voucherForm.discountAmount}
+                onChange={handleFormChange}
+                required
+                className="admin-input"
+                placeholder={
+                  voucherForm.discountType === "fixed"
+                    ? "VD: 50000"
+                    : "VD: 10 (cho 10%)"
+                }
+                min="0"
+                step={
+                  voucherForm.discountType === "percentage" ? "0.1" : "1000"
+                }
+              />
+            </div>
+          )}
+          {/* Minimum Order */}
+          <div
+            className={`md:col-span-1 ${
+              voucherForm.discountType === "shipping" ? "md:col-start-2" : ""
+            }`}
+          >
+            <label
+              htmlFor="minOrderAmount"
+              className="block text-xs font-medium text-gray-700 mb-1"
+            >
+              Đơn hàng tối thiểu (₫)
+            </label>
+            <input
+              type="number"
+              id="minOrderAmount"
+              name="minOrderAmount"
+              value={voucherForm.minOrderAmount}
+              onChange={handleFormChange}
+              className="admin-input"
+              placeholder="VD: 100000 (bỏ trống nếu không có)"
+              min="0"
+              step="10000"
+            />
+          </div>
+          {/* Expiry Date */}
+          <div className="md:col-span-1">
+            <label
+              htmlFor="expiryDate"
+              className="block text-xs font-medium text-gray-700 mb-1"
+            >
+              Ngày hết hạn
+            </label>
+            <input
+              type="date"
+              id="expiryDate"
+              name="expiryDate"
+              value={voucherForm.expiryDate}
+              onChange={handleFormChange}
+              className="admin-input"
+              min={new Date().toISOString().split("T")[0]}
+            />
+          </div>
+          {/* Status (Active/Inactive) - only for edit */}
+          {editingVoucher && (
+            <div className="md:col-span-1">
+              <label
+                htmlFor="status"
+                className="block text-xs font-medium text-gray-700 mb-1"
+              >
+                Trạng thái
+              </label>
+              <select
+                id="status"
+                name="status"
+                value={voucherForm.status}
+                onChange={handleFormChange}
+                className="admin-input"
+              >
+                <option value="Active">Kích hoạt (Active)</option>
+                <option value="Inactive">Không kích hoạt (Inactive)</option>
+              </select>
+            </div>
+          )}
+          <div className="md:col-span-2 flex justify-end gap-3 mt-3 pt-3 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={handleCancelForm}
+              className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 text-sm font-medium transition-colors"
+              disabled={isSubmitting}
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-md font-medium transition-colors text-sm flex items-center disabled:bg-gray-400"
+            >
+              {isSubmitting && <FaSpinner className="animate-spin mr-2" />}
+              {editingVoucher ? "Lưu Thay Đổi" : "Thêm Voucher"}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Voucher Table */}
       <div className="bg-white rounded-lg shadow-md mt-6">
@@ -516,29 +533,54 @@ export default function AdminVouchers() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mã Code</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giảm Giá</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đơn Tối Thiểu</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày Hết Hạn</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng Thái</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Hành Động</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Mã Code
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Giảm Giá
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Đơn Tối Thiểu
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ngày Hết Hạn
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Trạng Thái
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Hành Động
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-10 text-gray-500">Đang tải...</td>
+                  <td colSpan="6" className="text-center py-10 text-gray-500">
+                    <div className="p-6 text-center text-gray-500 flex items-center justify-center min-h-[calc(100vh-10rem)]">
+                      <div className="flex flex-col items-center">
+                        <div className="relative">
+                          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                        </div>
+                        <p className="mt-4 text-lg font-medium">
+                          Đang tải dữ liệu...
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          Vui lòng chờ trong giây lát
+                        </p>
+                      </div>
+                    </div>
+                  </td>
                 </tr>
               ) : vouchers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-10 text-gray-500">Không có voucher nào.</td>
+                  <td colSpan="6" className="text-center py-10 text-gray-500">
+                    Không có voucher nào.
+                  </td>
                 </tr>
               ) : (
                 vouchers.map((voucher) => (
-                  <tr
-                    key={voucher.id}
-                    className="hover:bg-gray-50 transition"
-                  >
+                  <tr key={voucher.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono font-semibold text-blue-600 flex items-center gap-2">
                       {voucher.code}
                       <button
@@ -549,7 +591,9 @@ export default function AdminVouchers() {
                         <FaClipboard size={13} />
                       </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{displayDiscount(voucher)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {displayDiscount(voucher)}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {voucher.minOrderAmount > 0
                         ? voucher.minOrderAmount.toLocaleString()
@@ -560,7 +604,9 @@ export default function AdminVouchers() {
                       {voucher.expiryDate &&
                         new Date(voucher.expiryDate) < new Date() &&
                         voucher.status !== "Expired" && (
-                          <span className="ml-1 text-xs text-red-500">(Hết hạn)</span>
+                          <span className="ml-1 text-xs text-red-500">
+                            (Hết hạn)
+                          </span>
                         )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -595,7 +641,9 @@ export default function AdminVouchers() {
                           <FaEdit size={15} />
                         </button>
                         <button
-                          onClick={() => handleDeleteClick(voucher.id, voucher.code)}
+                          onClick={() =>
+                            handleDeleteClick(voucher.id, voucher.code)
+                          }
                           className="p-2 rounded-full text-red-500 hover:text-white hover:bg-red-500 transition"
                           title="Xóa"
                         >
@@ -632,12 +680,6 @@ export default function AdminVouchers() {
       <style jsx global>{`
         .admin-input {
           @apply block w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors;
-        }
-        .th-admin {
-          @apply px-4 py-3 text-center text-xs font-bold text-gray-700 uppercase tracking-wider whitespace-nowrap;
-        }
-        .td-admin {
-          @apply px-4 py-3 whitespace-nowrap text-sm align-middle;
         }
       `}</style>
     </div>

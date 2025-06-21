@@ -1,81 +1,62 @@
-// src/layouts/AdminLayout.js
+// src/layouts/AdminLayout.jsx
 import React from "react";
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   FaTachometerAlt,
   FaBox,
   FaShoppingCart,
   FaUsers,
   FaTag,
-  FaTruck, // Added FaTruck for Shipping Methods
+  FaTruck,
 } from "react-icons/fa";
 
 export default function AdminLayout() {
   return (
-    <div className="min-h-screen flex bg-gray-100">
-      {" "}
-      {/* Changed bg-gray-50 to bg-gray-100 for a slightly different shade */}
+    <div className="min-h-screen flex bg-gradient-to-br from-gray-100 to-blue-50">
       {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-xl border-r border-gray-200 p-6 flex flex-col">
-        {" "}
-        {/* Increased padding, shadow, border color */}
+      <aside className="w-64 bg-white/90 backdrop-blur shadow-2xl border-r border-blue-100 p-7 flex flex-col">
         {/* Logo */}
-        <div className="mb-8 text-center">
-          {" "}
-          {/* Increased margin bottom, centered logo */}
+        <div className="mb-10 text-center">
           <Link
             to="/admin"
-            className="text-3xl font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            className="text-4xl font-extrabold tracking-tight text-blue-700 hover:text-blue-800 transition-colors"
+            style={{ letterSpacing: "0.03em" }}
           >
-            Retrend Admin
+            <span className="text-blue-400">Admin</span>
           </Link>
         </div>
         {/* Navigation */}
-        <nav className="flex-grow space-y-1.5">
-          {" "}
-          {/* Slightly reduced space between items for more links */}
-          <NavLink
-            icon={<FaTachometerAlt />}
-            to="/admin/admindashboard"
-            label="Dashboard"
-          />
-          <NavLink icon={<FaBox />} to="/admin/products" label="Sản phẩm" />
-          <NavLink
-            icon={<FaShoppingCart />}
-            to="/admin/orders"
-            label="Đơn hàng"
-          />
-          <NavLink icon={<FaUsers />} to="/admin/users" label="Người dùng" />
-          <NavLink icon={<FaTag />} to="/admin/vouchers" label="Mã giảm giá" />
-          {/* --- NEW: Shipping Methods Link --- */}
-          <NavLink
-            icon={<FaTruck />}
-            to="/admin/shipping"
-            label="Vận chuyển"
-          />
-          {/* --- End NEW --- */}
+        <nav className="flex-grow">
+          <ul className="space-y-2">
+            <NavLink
+              icon={<FaTachometerAlt />}
+              to="/admin/admindashboard"
+              label="Dashboard"
+            />
+            <NavLink icon={<FaBox />} to="/admin/products" label="Sản phẩm" />
+            <NavLink
+              icon={<FaShoppingCart />}
+              to="/admin/orders"
+              label="Đơn hàng"
+            />
+            {/* <NavLink icon={<FaUsers />} to="/admin/users" label="Người dùng" /> */}
+            <NavLink icon={<FaTag />} to="/admin/vouchers" label="Mã giảm giá" />
+            <NavLink
+              icon={<FaTruck />}
+              to="/admin/shipping"
+              label="Vận chuyển"
+            />
+          </ul>
         </nav>
-        {/* Optional: Admin User Info / Logout Placeholder */}
-        <div className="mt-auto pt-6 border-t border-gray-200">
-          {/* Example: Could display logged-in admin's name or role */}
-          {/* <div className="p-2 text-center text-xs text-gray-500">Admin Panel v1.0</div> */}
-          {/* <button 
-            onClick={() => { // Placeholder for logout
-                console.log("Logout clicked");
-                // navigate('/logout'); // Or clear auth token and redirect
-            }}
-            className="w-full mt-2 text-left px-4 py-2.5 text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors font-medium flex items-center"
-          >
-            <FaSignOutAlt className="mr-3" /> Đăng xuất 
-          </button> */}
-          {/* You might need to import FaSignOutAlt if you use it */}
+        {/* Footer */}
+        <div className="mt-auto pt-8 border-t border-blue-100 text-center">
+          <span className="text-xs text-gray-400 font-medium tracking-wide">
+            Admin Panel v1.0
+          </span>
         </div>
       </aside>
       {/* Main Content Area */}
-      <main className="flex-grow p-6 md:p-8 overflow-y-auto">
-        {" "}
-        {/* Added padding and overflow-y-auto */}
-        {/* Removed container and mx-auto from main, as pages themselves should handle their max-width */}
+      <main className="flex-grow p-8 md:p-12 bg-white/80 rounded-tl-3xl shadow-inner overflow-y-auto">
         <Outlet />
       </main>
     </div>
@@ -84,34 +65,30 @@ export default function AdminLayout() {
 
 // Helper component for NavLink to reduce repetition
 const NavLink = ({ to, icon, label }) => {
-  // You could use useLocation and NavLink from react-router-dom for active styling
-  // For simplicity, this is just a styled Link.
-  const [isActive, setIsActive] = React.useState(false); // Placeholder for active state
-  const location = React.useContext(React.createContext(null)); // Mock context for location
-
-  // This is a simplified active check. For robust active links, use NavLink from react-router-dom.
-  // useEffect(() => {
-  //   if (location && location.pathname.startsWith(to)) {
-  //     setIsActive(true);
-  //   } else {
-  //     setIsActive(false);
-  //   }
-  // }, [location, to]);
+  const location = useLocation();
+  const isActive = location.pathname.startsWith(to);
 
   return (
     <li>
       <Link
         to={to}
-        className={`flex items-center px-4 py-2.5 text-sm rounded-md transition-all duration-200 ease-in-out group
-                    ${
-                      isActive
-                        ? "bg-blue-500 text-white shadow-md font-semibold"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 hover:shadow-sm"
-                    }`}
+        className={`flex items-center gap-3 px-4 py-3 text-base rounded-lg font-medium transition-all duration-200
+          ${
+            isActive
+              ? "bg-blue-600 text-white shadow-lg"
+              : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+          }`}
+        style={{
+          boxShadow: isActive
+            ? "0 2px 12px 0 rgba(59,130,246,0.10)"
+            : undefined,
+        }}
       >
         {React.cloneElement(icon, {
-          className: `mr-3 w-5 h-5 flex-shrink-0 ${
-            isActive ? "text-white" : "text-gray-400 group-hover:text-gray-500"
+          className: `w-5 h-5 flex-shrink-0 ${
+            isActive
+              ? "text-white"
+              : "text-blue-400 group-hover:text-blue-600"
           }`,
         })}
         {label}

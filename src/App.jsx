@@ -9,7 +9,7 @@ import CustomerLayout from "./layouts/CustomerLayout";
 import AdminLayout from "./layouts/AdminLayout";
 import HomePage from "./pages/customer/HomePage";
 import ProductsPage from "./pages/customer/ProductsPage";
-// import ProductDetailPage from "./pages/customer/ProductDetailPage";
+import ProductDetailPage from "./pages/customer/ProductDetailPage";
 import CartPage from "./pages/customer/CartPage";
 import CheckoutPage from "./pages/customer/CheckoutPage";
 import LoginPage from "./pages/customer/LoginPage";
@@ -48,7 +48,7 @@ function App() {
           <Route path="/" element={<CustomerLayout />}>
             <Route index element={<HomePage />} />
             <Route path="products" element={<ProductsPage />} />
-            {/* <Route path="products/:id" element={<ProductDetailPage />} /> */}
+            <Route path="products/:id" element={<ProductDetailPage />} />
             <Route path="cart" element={<CartPage />} />
             <Route path="checkout" element={<CheckoutPage />} />
             <Route path="login" element={<LoginPage />} />

@@ -1,11 +1,55 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart, PieChart, LineChart, Line, Bar, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import {
+  BarChart, PieChart, LineChart, Line, Bar, Pie, XAxis, YAxis,
+  CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
+} from 'recharts';
 import { Users, ShoppingBag, DollarSign, TrendingUp, Package } from 'lucide-react';
 import adminAPIService from '../../services/AdminService';
 
+const STATUS_LABELS = {
+  'Paid': 'Đã thanh toán',
+  'Confirmed': 'Đã xác nhận',
+  'Awaiting Payment': 'Chờ thanh toán',
+  'Pending': 'Chờ xử lý',
+  'Complete': 'Hoàn thành',
+  'Cancelled': 'Đã hủy',
+  'Processing': 'Đang xử lý',
+  'Shipped': 'Đã giao',
+};
+
+const statusColors = {
+  'Paid': '#6366F1',
+  'Confirmed': '#10B981',
+  'Awaiting Payment': '#F59E42',
+  'Pending': '#FBBF24',
+  'Complete': '#3B82F6',
+  'Cancelled': '#EF4444',
+  'Processing': '#F59E0B',
+  'Shipped': '#06B6D4',
+};
+
+function fillMonthlyData(raw, keys = []) {
+  const monthMap = {};
+  raw.forEach(item => {
+    monthMap[item.month] = item;
+  });
+  return Array.from({ length: 12 }, (_, i) => {
+    const month = i + 1;
+    const found = monthMap[month];
+    const base = { month };
+    keys.forEach(k => base[k] = 0);
+    return found ? { ...base, ...found } : base;
+  });
+}
+
+const CARD_ICONS = [
+  { icon: <DollarSign className="h-7 w-7 text-blue-500" />, bg: "bg-blue-100" },
+  { icon: <ShoppingBag className="h-7 w-7 text-purple-500" />, bg: "bg-purple-100" },
+  { icon: <Users className="h-7 w-7 text-amber-500" />, bg: "bg-amber-100" },
+];
+
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [expandedSection, setExpandedSection] = useState(null);
+  const [activeTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -42,7 +86,6 @@ export default function AdminDashboard() {
         });
         setLoading(false);
       } catch (err) {
-        console.error('Không thể tải dữ liệu tổng quan:', err);
         setError(err.message || 'Không thể tải dữ liệu tổng quan');
         setLoading(false);
       }
@@ -78,23 +121,16 @@ export default function AdminDashboard() {
       setLoadingProduct(true);
       setErrorProduct(null);
       try {
-        // API trả về dạng {1: 10, 2: 5, ...}
         const monthlyRes = await adminAPIService.getNewProductsByMonth(selectedYear);
-        // API trả về dạng {ACTIVE: 10, INACTIVE: 5, ...}
         const statusRes = await adminAPIService.getProductStatusDistribution();
 
-        console.log("getNewProductsByMonth response:", monthlyRes);
-        console.log("getProductStatusDistribution response:", statusRes);
-
-        // Chuẩn hóa dữ liệu cho chart cột (12 tháng)
         const monthlyArr = Array.from({ length: 12 }, (_, i) => ({
           month: i + 1,
-          newProductCount: monthlyRes[i + 1] || 0 // SỬA: bỏ .data
+          newProductCount: monthlyRes[i + 1] || 0
         }));
         setMonthlyProducts(monthlyArr);
 
-        // Chuẩn hóa dữ liệu cho chart tròn
-        const statusArr = Object.entries(statusRes).map(([name, value]) => ({ name, value })); // SỬA: bỏ .data
+        const statusArr = Object.entries(statusRes).map(([name, value]) => ({ name, value }));
         setProductStatusData(statusArr);
 
       } catch (err) {
@@ -115,116 +151,98 @@ export default function AdminDashboard() {
   };
 
   const orderStatusData = Object.entries(stats.orderStatusCounts).map(([name, value]) => ({
-    name,
+    name: STATUS_LABELS[name] || name,
     value
   }));
 
-  const statusColors = {
-    'Paid': '#6366F1',
-    'Confirmed': '#10B981',
-    'Awaiting Payment': '#F59E42',
-    'Pending': '#FBBF24',
-    'Complete': '#3B82F6',
-    'Cancelled': '#EF4444',
-    'Processing': '#F59E0B',
-    'Shipped': '#06B6D4',
-  };
-
-  function fillMonthlyData(raw, keys = []) {
-    const monthMap = {};
-    raw.forEach(item => {
-      monthMap[item.month] = item;
-    });
-    return Array.from({ length: 12 }, (_, i) => {
-      const month = i + 1;
-      const found = monthMap[month];
-      const base = { month };
-      keys.forEach(k => base[k] = 0);
-      return found ? { ...base, ...found } : base;
-    });
-  }
-
+  // UI
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="p-6">
+    <div className="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {activeTab === 'overview' && (
           <>
             {/* Tổng quan thống kê */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              <div className="bg-white rounded-lg shadow p-6 flex items-center">
-                <div className="bg-blue-100 p-3 rounded-full">
-                  <DollarSign className="h-6 w-6 text-blue-500" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Tổng doanh thu */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border-t-4 border-blue-500">
+                <div className="bg-blue-100 p-4 rounded-xl flex items-center justify-center">
+                  <DollarSign className="h-7 w-7 text-blue-500" />
                 </div>
-                <div className="ml-4">
-                  <h3 className="text-gray-500 text-sm">Tổng doanh thu</h3>
+                <div>
+                  <div className="text-gray-500 text-xs font-medium uppercase">Tổng doanh thu</div>
                   {loading ? (
                     <div className="animate-pulse h-8 w-24 bg-gray-200 rounded"></div>
                   ) : (
                     <>
-                      <p className="text-2xl font-semibold">{formatCurrency(stats.totalRevenue)}</p>
-                      <p className="text-green-500 text-sm flex items-center">
+                      <div className="text-2xl font-bold text-gray-800">{formatCurrency(stats.totalRevenue)}</div>
+                      {/* <div className="text-green-500 text-xs flex items-center mt-1">
                         <TrendingUp className="h-4 w-4 mr-1" /> +12.5% so với tháng trước
-                      </p>
+                      </div> */}
                     </>
                   )}
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow p-6 flex items-center">
-                <div className="bg-purple-100 p-3 rounded-full">
-                  <ShoppingBag className="h-6 w-6 text-purple-500" />
+              {/* Tổng đơn hàng */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border-t-4 border-purple-500">
+                <div className="bg-purple-100 p-4 rounded-xl flex items-center justify-center">
+                  <ShoppingBag className="h-7 w-7 text-purple-500" />
                 </div>
-                <div className="ml-4">
-                  <h3 className="text-gray-500 text-sm">Tổng đơn hàng</h3>
+                <div>
+                  <div className="text-gray-500 text-xs font-medium uppercase">Tổng đơn hàng</div>
                   {loading ? (
                     <div className="animate-pulse h-8 w-24 bg-gray-200 rounded"></div>
                   ) : (
                     <>
-                      <p className="text-2xl font-semibold">{stats.totalOrders}</p>
-                      <p className="text-green-500 text-sm flex items-center">
+                      <div className="text-2xl font-bold text-gray-800">{stats.totalOrders}</div>
+                      {/* <div className="text-green-500 text-xs flex items-center mt-1">
                         <TrendingUp className="h-4 w-4 mr-1" /> +8.2% so với tháng trước
-                      </p>
+                      </div> */}
                     </>
                   )}
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow p-6 flex items-center">
-                <div className="bg-amber-100 p-3 rounded-full">
-                  <Users className="h-6 w-6 text-amber-500" />
+              {/* Tổng khách hàng */}
+              <div className="bg-white rounded-2xl shadow-lg p-6 flex items-center gap-4 border-t-4 border-amber-500">
+                <div className="bg-amber-100 p-4 rounded-xl flex items-center justify-center">
+                  <Users className="h-7 w-7 text-amber-500" />
                 </div>
-                <div className="ml-4">
-                  <h3 className="text-gray-500 text-sm">Tổng khách hàng</h3>
+                <div>
+                  <div className="text-gray-500 text-xs font-medium uppercase">Tổng khách hàng</div>
                   {loading ? (
                     <div className="animate-pulse h-8 w-24 bg-gray-200 rounded"></div>
                   ) : (
                     <>
-                      <p className="text-2xl font-semibold">{stats.totalCustomers}</p>
-                      <p className="text-green-500 text-sm flex items-center">
+                      <div className="text-2xl font-bold text-gray-800">{stats.totalCustomers}</div>
+                      {/* <div className="text-green-500 text-xs flex items-center mt-1">
                         <TrendingUp className="h-4 w-4 mr-1" /> +5.7% so với tháng trước
-                      </p>
+                      </div> */}
                     </>
                   )}
                 </div>
               </div>
-              {Object.entries(stats.orderStatusCounts).map(([status, count]) => (
-                <div key={status} className="bg-white rounded-lg shadow p-6 flex items-center">
-                  <div className={`bg-${statusColors[status]?.replace('#', '')}-100 p-3 rounded-full`}>
-                    <Package className={`h-6 w-6 text-${statusColors[status]?.replace('#', '')}-500`} />
+              {/* Trạng thái đơn hàng */}
+              <div className="flex flex-col gap-2">
+                {Object.entries(stats.orderStatusCounts).map(([status, count], idx) => (
+                  <div key={status} className="bg-white rounded-xl shadow flex items-center p-3 gap-3 border-l-4" style={{ borderColor: statusColors[status] || '#8884d8' }}>
+                    <div className="p-2 rounded-lg" style={{ background: (statusColors[status] || '#8884d8') + '22' }}>
+                      <Package className="h-5 w-5" style={{ color: statusColors[status] || '#8884d8' }} />
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-500">{STATUS_LABELS[status] || status}</div>
+                      <div className="font-semibold text-gray-700">{count}</div>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <h3 className="text-gray-500 text-sm">{status} đơn hàng</h3>
-                    <p className="text-2xl font-semibold">{count}</p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             {/* Bộ lọc năm */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-6">
               <label className="text-sm font-medium text-gray-600">Năm:</label>
               <select
                 value={selectedYear}
                 onChange={e => setSelectedYear(Number(e.target.value))}
-                className="border rounded px-2 py-1 text-sm"
+                className="border rounded px-2 py-1 text-sm focus:ring-blue-500 focus:border-blue-500"
               >
                 {[...Array(5)].map((_, idx) => {
                   const year = new Date().getFullYear() - idx;
@@ -236,10 +254,10 @@ export default function AdminDashboard() {
             </div>
 
             {/* Hàng 2: Doanh thu & Khách hàng mới */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white p-6 rounded-lg shadow mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-2xl shadow-lg">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold">Doanh thu theo tháng ({selectedYear})</h2>
+                  <h2 className="text-lg font-semibold text-blue-700">Doanh thu theo tháng ({selectedYear})</h2>
                 </div>
                 {loadingMonthly ? (
                   <div className="animate-pulse h-64 bg-gray-200 rounded"></div>
@@ -253,15 +271,15 @@ export default function AdminDashboard() {
                       <YAxis tickFormatter={v => v.toLocaleString()} />
                       <Tooltip formatter={v => formatCurrency(v)} />
                       <Legend />
-                      <Bar dataKey="orderRevenue" name="Doanh thu đơn hàng" fill="#6366F1" />
-                      <Bar dataKey="sellerPackageRevenue" name="Doanh thu gói người bán" fill="#10B981" />
+                      <Bar dataKey="orderRevenue" name="Đơn hàng" fill="#6366F1" radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="sellerPackageRevenue" name="Gói người bán" fill="#10B981" radius={[8, 8, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
-              <div className="bg-white p-6 rounded-lg shadow mb-6">
+              <div className="bg-white p-6 rounded-2xl shadow-lg">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold">Khách hàng mới theo tháng ({selectedYear})</h2>
+                  <h2 className="text-lg font-semibold text-orange-700">Khách hàng mới theo tháng ({selectedYear})</h2>
                 </div>
                 {loadingMonthly ? (
                   <div className="animate-pulse h-64 bg-gray-200 rounded"></div>
@@ -283,10 +301,10 @@ export default function AdminDashboard() {
             </div>
 
             {/* Hàng 3: Sản phẩm mới & Trạng thái sản phẩm */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-              <div className="bg-white p-6 rounded-lg shadow mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-2xl shadow-lg">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold">Sản phẩm mới theo tháng ({selectedYear})</h2>
+                  <h2 className="text-lg font-semibold text-fuchsia-700">Sản phẩm mới theo tháng ({selectedYear})</h2>
                 </div>
                 {loadingProduct ? (
                   <div className="animate-pulse h-64 bg-gray-200 rounded"></div>
@@ -300,14 +318,14 @@ export default function AdminDashboard() {
                       <YAxis allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="newProductCount" name="Sản phẩm mới" fill="#F59E42" />
+                      <Bar dataKey="newProductCount" name="Sản phẩm mới" fill="#F59E42" radius={[8, 8, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
-              <div className="bg-white p-6 rounded-lg shadow mb-6">
+              <div className="bg-white p-6 rounded-2xl shadow-lg">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold">Phân bố trạng thái sản phẩm</h2>
+                  <h2 className="text-lg font-semibold text-violet-700">Phân bố trạng thái sản phẩm</h2>
                 </div>
                 {loadingProduct ? (
                   <div className="animate-pulse h-64 bg-gray-200 rounded"></div>
@@ -339,10 +357,10 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Hàng 4: Trạng thái đơn hàng (full width) */}
-            <div className="bg-white p-6 rounded-lg shadow mb-6">
+            {/* Hàng 4: Trạng thái đơn hàng */}
+            <div className="bg-white p-6 rounded-2xl shadow-lg mb-8">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Phân bố trạng thái đơn hàng</h2>
+                <h2 className="text-lg font-semibold text-blue-700">Phân bố trạng thái đơn hàng</h2>
               </div>
               {loading ? (
                 <div className="animate-pulse h-64 bg-gray-200 rounded"></div>
