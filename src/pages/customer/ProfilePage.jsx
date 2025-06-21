@@ -231,8 +231,7 @@ export default function ProfilePage() {
   };
   const handleLogout = () => {
     localStorage.clear();
-    navigate("/login");
-    window.location.reload();
+    navigate("/");
   };
 
   // --- Render Functions for Views ---
